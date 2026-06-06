@@ -6,13 +6,15 @@ on:
   pull_request:
 
 jobs:
+  # Default sun.misc backend across the supported JDK range. The JDK 25 cell is
+  # also the canary: if sun.misc.Signal ever disappears or needs a flag, it fails.
   test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        jdk: ['8', '11', '17', '21']
-    name: JDK ${{ matrix.jdk }}
+        jdk: ['8', '11', '17', '21', '25']
+    name: sun.misc / JDK ${{ matrix.jdk }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -28,3 +30,24 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('project.clj') }}
           restore-keys: ${{ runner.os }}-m2-
       - run: lein test
+
+  # Experimental FFM signalfd backend (Linux, JDK 22+). Runs the same behavioral
+  # spec under -Dbeckon.signal.backend=ffm with native access enabled.
+  ffm:
+    runs-on: ubuntu-latest
+    name: ffm / JDK 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          lein: 2.12.0
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('project.clj') }}
+          restore-keys: ${{ runner.os }}-m2-
+      - run: lein with-profile +ffm test
