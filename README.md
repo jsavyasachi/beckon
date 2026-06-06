@@ -164,14 +164,21 @@ isolated behind a small internal `SignalBackend` seam, so an alternative is a
 drop-in if it is ever needed.
 
 An **experimental** backend built on the Foreign Function & Memory API
-(Linux `signalfd`, JDK 22+) is included, but it is **off by default** and **not
-bundled in the released jar**. Select it with `-Dbeckon.signal.backend=ffm`
-(also requires `--enable-native-access=ALL-UNNAMED`). It demonstrates the modern
-interop; it is not a replacement. A JVM starts threads before beckon loads, and
-`signalfd` only captures a signal that is blocked in every thread, so this
-backend reliably handles beckon's own `raise!` but not signals sent from outside
-the process (e.g. `kill -HUP`). That limitation is why `sun.misc` stays the
-default.
+(JDK 22+) is included, but it is **off by default** and **not bundled in the
+released jar**. Select it with `-Dbeckon.signal.backend=ffm` (also requires
+`--enable-native-access=ALL-UNNAMED`). It picks a platform implementation
+automatically: Linux `signalfd` or macOS/BSD `kqueue`.
+
+Their capabilities differ, which is itself instructive:
+
+ - **Linux (`signalfd`)** reliably handles beckon's own `raise!`, but not
+   signals from *outside* the process (e.g. `kill -HUP`): a JVM starts threads
+   before beckon loads, and `signalfd` only captures a signal blocked in every
+   thread, which cannot be arranged retroactively.
+ - **macOS/BSD (`kqueue`)** sets each managed signal to `SIG_IGN` - a
+   process-wide disposition - so it also observes external signals.
+
+Both remain experimental, which is why `sun.misc` stays the default everywhere.
 
 ## License
 
