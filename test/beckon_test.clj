@@ -11,7 +11,10 @@
   (testing "the same signal name yields the identical atom"
     (is (identical? (beckon/signal-atom "USR2") (beckon/signal-atom "USR2"))))
   (testing "different signals yield different atoms"
-    (is (not (identical? (beckon/signal-atom "USR2") (beckon/signal-atom "USR1"))))))
+    ;; WINCH (terminal resize), not USR1: the JVM reserves SIGUSR1 internally on
+    ;; some platforms (notably JDK 8 on Linux), so installing a handler there
+    ;; throws "Signal already used by VM or OS".
+    (is (not (identical? (beckon/signal-atom "USR2") (beckon/signal-atom "WINCH"))))))
 
 (deftest signal-atom-holds-runnable-collection
   (testing "a signal atom dereferences to a Seqable collection"
