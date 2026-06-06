@@ -156,6 +156,23 @@ see what we can do about it!
 
 [new-issue]: https://github.com/jsavyasachi/beckon/issues/new "Add a new issue to Beckon"
 
+## Signal backends
+
+By default beckon uses `sun.misc.Signal`, which works on JDK 8+ with no extra
+JVM flags. Because that API is marked "internal proprietary," all use of it is
+isolated behind a small internal `SignalBackend` seam, so an alternative is a
+drop-in if it is ever needed.
+
+An **experimental** backend built on the Foreign Function & Memory API
+(Linux `signalfd`, JDK 22+) is included, but it is **off by default** and **not
+bundled in the released jar**. Select it with `-Dbeckon.signal.backend=ffm`
+(also requires `--enable-native-access=ALL-UNNAMED`). It demonstrates the modern
+interop; it is not a replacement. A JVM starts threads before beckon loads, and
+`signalfd` only captures a signal that is blocked in every thread, so this
+backend reliably handles beckon's own `raise!` but not signals sent from outside
+the process (e.g. `kill -HUP`). That limitation is why `sun.misc` stays the
+default.
+
 ## License
 
 Copyright © 2013 Jean Niklas L'orange
