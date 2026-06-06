@@ -1,6 +1,7 @@
 # beckon
 
-[![Clojars Project](https://img.shields.io/clojars/v/net.clojars.savya/beckon.svg)](https://clojars.org/net.clojars.savya/beckon)
+[![beckon](https://img.shields.io/clojars/v/net.clojars.savya/beckon.svg?label=beckon)](https://clojars.org/net.clojars.savya/beckon)
+[![beckon-ffm](https://img.shields.io/clojars/v/net.clojars.savya/beckon-ffm.svg?label=beckon-ffm)](https://clojars.org/net.clojars.savya/beckon-ffm)
 [![ci](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml/badge.svg)](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml)
 
 A Clojure library to handle POSIX signals in JVM applications with style and
