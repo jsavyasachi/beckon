@@ -12,13 +12,13 @@ simple fashion.
 Add the dependency. Leiningen (`project.clj`):
 
 ```clj
-[net.clojars.savya/beckon "0.3.0"]
+[net.clojars.savya/beckon "0.4.0"]
 ```
 
 Clojure CLI (`deps.edn`):
 
 ```clj
-net.clojars.savya/beckon {:mvn/version "0.3.0"}
+net.clojars.savya/beckon {:mvn/version "0.4.0"}
 ```
 
 beckon runs on JDK 8 or later with **no extra JVM flags**. It wraps
@@ -164,12 +164,18 @@ isolated behind a small internal `SignalBackend` seam, so an alternative is a
 drop-in if it is ever needed.
 
 An experimental alternative built on the Foreign Function & Memory API (JDK 22+)
-is published separately as
+ships as a **separate package**,
 [`beckon-ffm`](https://github.com/jsavyasachi/beckon-ffm) (Linux `signalfd`,
-macOS/BSD `kqueue`). Add that dependency and start the JVM with
-`-Dbeckon.signal.backend=ffm --enable-native-access=ALL-UNNAMED` to opt in. It
-lives apart because it needs JDK 22+, whereas this core jar targets JDK 8;
-`sun.misc` stays the default.
+macOS/BSD `kqueue`). Add it alongside beckon:
+
+```clj
+[net.clojars.savya/beckon "0.4.0"]
+[net.clojars.savya/beckon-ffm "0.1.0"]
+```
+
+then start the JVM with `-Dbeckon.signal.backend=ffm
+--enable-native-access=ALL-UNNAMED` to opt in. It lives apart because it needs
+JDK 22+, whereas this core jar targets JDK 8; `sun.misc` stays the default.
 
 ## License
 
