@@ -74,6 +74,11 @@ public final class FfmSignalfdBackend implements SignalBackend {
     private volatile long dispatcherPthread = 0;
     private volatile boolean running = true;
 
+    // Serializes raise() and lets it wait for the dispatcher to fold the read it
+    // triggered, so signals never bleed from one raise! into a later one.
+    private final Object raiseLock = new Object();
+    private volatile CountDownLatch raiseDone;
+
     public FfmSignalfdBackend() {
         if (!System.getProperty("os.name", "").toLowerCase().contains("linux")) {
             throw new UnsupportedOperationException(
@@ -153,6 +158,8 @@ public final class FfmSignalfdBackend implements SignalBackend {
             }
             int signo = buf.get(JAVA_INT, 0); // ssi_signo is the first field
             fold(registry.get(signo));
+            CountDownLatch done = raiseDone;
+            if (done != null) done.countDown();
         }
     }
 
@@ -214,12 +221,26 @@ public final class FfmSignalfdBackend implements SignalBackend {
     @Override
     public void raise(String signame) {
         int signo = signo(signame);
-        try {
-            // Direct the signal at the dispatcher thread (where it is blocked),
-            // so it becomes pending there and is read from the signalfd.
-            int r = (int) pthreadKill.invokeExact(dispatcherPthread, signo);
-        } catch (Throwable e) {
-            throw new RuntimeException("pthread_kill failed for " + signame, e);
+        // Serialize raises and wait for the dispatcher to fold the resulting
+        // read, so a raise's handlers are observably finished before raise()
+        // returns and signals cannot bleed into a later caller's handler set.
+        synchronized (raiseLock) {
+            CountDownLatch done = new CountDownLatch(1);
+            raiseDone = done;
+            try {
+                // Direct the signal at the dispatcher thread (where it is
+                // blocked), so it becomes pending there and is read from the fd.
+                int r = (int) pthreadKill.invokeExact(dispatcherPthread, signo);
+            } catch (Throwable e) {
+                raiseDone = null;
+                throw new RuntimeException("pthread_kill failed for " + signame, e);
+            }
+            try {
+                done.await(2, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            raiseDone = null;
         }
     }
 }
