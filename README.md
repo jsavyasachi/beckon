@@ -1,16 +1,29 @@
 # beckon
 
+[![Clojars Project](https://img.shields.io/clojars/v/net.clojars.savya/beckon.svg)](https://clojars.org/net.clojars.savya/beckon)
+[![ci](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml/badge.svg)](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml)
+
 A Clojure library to handle POSIX signals in JVM applications with style and
 grace. Sets up with the dirty parts and let you work with it in a (relatively)
 simple fashion.
 
 ## Quick-start
 
-Add the following dependency to your `project.clj` file:
+Add the dependency. Leiningen (`project.clj`):
 
 ```clj
-[beckon "0.1.1"]
+[net.clojars.savya/beckon "0.2.0"]
 ```
+
+Clojure CLI (`deps.edn`):
+
+```clj
+net.clojars.savya/beckon {:mvn/version "0.2.0"}
+```
+
+beckon runs on JDK 8 or later with **no extra JVM flags**. It wraps
+`sun.misc.Signal`, which stays accessible via the `jdk.unsupported` module on
+current JDKs, so no `--add-exports` or `--add-opens` is needed.
 
 Say you want to grab `SIGINT` and, say, print "Hahah, nothing can stop me!"
 whenever someone attempts to interrupt the process. Hit up your Emacs nREPL
@@ -141,10 +154,13 @@ see what we can do about it!
   mean they are actually able to send back something of value. This is intended
   to be fixed in a later version.
 
-[new-issue]: https://github.com/hyPiRion/beckon/issues/new "Add a new issue to Beckon"
+[new-issue]: https://github.com/jsavyasachi/beckon/issues/new "Add a new issue to Beckon"
 
 ## License
 
 Copyright © 2013 Jean Niklas L'orange
+
+Maintenance fork (2026) by Savyasachi, preserving the original Eclipse Public
+License.  Original project: https://github.com/hyPiRion/beckon
 
 Distributed under the Eclipse Public License, the same as Clojure.
