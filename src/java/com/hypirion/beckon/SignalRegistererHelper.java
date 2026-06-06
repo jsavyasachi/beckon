@@ -23,10 +23,20 @@ public class SignalRegistererHelper {
             return new SunMiscSignalBackend();
         }
         if ("ffm".equalsIgnoreCase(choice)) {
+            String os = System.getProperty("os.name", "").toLowerCase();
+            String cls =
+                os.contains("linux") ? "com.hypirion.beckon.FfmSignalfdBackend"
+                : (os.contains("mac") || os.contains("darwin") || os.contains("bsd"))
+                  ? "com.hypirion.beckon.FfmKqueueBackend"
+                  : null;
+            if (cls == null) {
+                throw new UnsupportedOperationException(
+                    "beckon FFM signal backend supports Linux (signalfd) and "
+                    + "macOS/BSD (kqueue), not " + System.getProperty("os.name"));
+            }
             try {
                 return (SignalBackend)
-                    Class.forName("com.hypirion.beckon.FfmSignalfdBackend")
-                         .getDeclaredConstructor().newInstance();
+                    Class.forName(cls).getDeclaredConstructor().newInstance();
             } catch (java.lang.reflect.InvocationTargetException e) {
                 // Surface the backend's own reason (e.g. wrong OS / JDK).
                 Throwable cause = e.getCause();
@@ -37,7 +47,7 @@ public class SignalRegistererHelper {
                     "beckon FFM signal backend is unavailable", cause);
             } catch (ReflectiveOperationException e) {
                 throw new UnsupportedOperationException(
-                    "beckon FFM signal backend requires Linux and JDK 22+; "
+                    "beckon FFM signal backend requires JDK 22+; "
                     + "it is not available here.", e);
             }
         }

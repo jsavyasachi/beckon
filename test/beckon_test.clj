@@ -13,10 +13,10 @@
 ;; CI also runs it under ffm on Linux/JDK 22+).
 (deftest backend-selection
   (testing "the backend that loaded matches the one requested"
-    (is (= (case (System/getProperty "beckon.signal.backend" "sunmisc")
-             "ffm"     "FfmSignalfdBackend"
-             "sunmisc" "SunMiscSignalBackend")
-           (SignalRegistererHelper/backendName)))))
+    (let [active (SignalRegistererHelper/backendName)]
+      (case (System/getProperty "beckon.signal.backend" "sunmisc")
+        "ffm"     (is (contains? #{"FfmSignalfdBackend" "FfmKqueueBackend"} active))
+        "sunmisc" (is (= "SunMiscSignalBackend" active))))))
 
 (deftest signal-atom-identity
   (testing "the same signal name yields the identical atom"
