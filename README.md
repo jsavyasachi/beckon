@@ -12,13 +12,13 @@ simple fashion.
 Add the dependency. Leiningen (`project.clj`):
 
 ```clj
-[net.clojars.savya/beckon "0.2.0"]
+[net.clojars.savya/beckon "0.3.0"]
 ```
 
 Clojure CLI (`deps.edn`):
 
 ```clj
-net.clojars.savya/beckon {:mvn/version "0.2.0"}
+net.clojars.savya/beckon {:mvn/version "0.3.0"}
 ```
 
 beckon runs on JDK 8 or later with **no extra JVM flags**. It wraps
