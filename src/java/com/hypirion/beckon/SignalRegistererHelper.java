@@ -46,6 +46,11 @@ public class SignalRegistererHelper {
             + " (expected \"sunmisc\" or \"ffm\")");
     }
 
+    /** Simple class name of the active backend, for diagnostics and tests. */
+    public static String backendName() {
+        return BACKEND.getClass().getSimpleName();
+    }
+
     static synchronized void register(String signame, Seqable fns) {
         BACKEND.register(signame, fns);
     }

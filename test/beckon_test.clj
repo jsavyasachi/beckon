@@ -1,11 +1,22 @@
 (ns beckon-test
   (:require [clojure.test :refer :all]
-            [beckon :as beckon]))
+            [beckon :as beckon])
+  (:import (com.hypirion.beckon SignalRegistererHelper)))
 
 ;; Use SIGUSR2: its default disposition is to terminate the JVM, but every test
 ;; installs a beckon handler before raising it, so delivery runs our code rather
 ;; than killing the runner. Reset all beckon-owned handlers after each test.
 (use-fixtures :each (fn [run] (try (run) (finally (beckon/reinit-all!)))))
+
+;; This whole suite is the backend-agnostic behavioral spec: it runs unchanged
+;; against whichever backend `-Dbeckon.signal.backend` selects (default sunmisc;
+;; CI also runs it under ffm on Linux/JDK 22+).
+(deftest backend-selection
+  (testing "the backend that loaded matches the one requested"
+    (is (= (case (System/getProperty "beckon.signal.backend" "sunmisc")
+             "ffm"     "FfmSignalfdBackend"
+             "sunmisc" "SunMiscSignalBackend")
+           (SignalRegistererHelper/backendName)))))
 
 (deftest signal-atom-identity
   (testing "the same signal name yields the identical atom"
