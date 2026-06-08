@@ -2,6 +2,7 @@
 
 [![beckon](https://img.shields.io/clojars/v/net.clojars.savya/beckon.svg?label=beckon)](https://clojars.org/net.clojars.savya/beckon)
 [![beckon-ffm](https://img.shields.io/clojars/v/net.clojars.savya/beckon-ffm.svg?label=beckon-ffm)](https://clojars.org/net.clojars.savya/beckon-ffm)
+[![cljdoc](https://cljdoc.org/badge/net.clojars.savya/beckon)](https://cljdoc.org/d/net.clojars.savya/beckon/CURRENT)
 [![ci](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml/badge.svg)](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml)
 
 A Clojure library to handle POSIX signals in JVM applications with style and
