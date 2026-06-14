@@ -9,9 +9,13 @@ A Clojure library to handle POSIX signals in JVM applications with style and
 grace. Sets up with the dirty parts and let you work with it in a (relatively)
 simple fashion.
 
-## Quick-start
+## Stack
 
-Add the dependency. Leiningen (`project.clj`):
+<a href="https://clojure.org"><img src="https://img.shields.io/badge/Clojure-5881D8?style=flat&logo=clojure&logoColor=fff" alt="Clojure" /></a>
+
+## Installation
+
+Leiningen (`project.clj`):
 
 ```clj
 [net.clojars.savya/beckon "0.4.0"]
@@ -26,6 +30,8 @@ net.clojars.savya/beckon {:mvn/version "0.4.0"}
 beckon runs on JDK 8 or later with **no extra JVM flags**. It wraps
 `sun.misc.Signal`, which stays accessible via the `jdk.unsupported` module on
 current JDKs, so no `--add-exports` or `--add-opens` is needed.
+
+## Quick-start
 
 Say you want to grab `SIGINT` and, say, print "Hahah, nothing can stop me!"
 whenever someone attempts to interrupt the process. Hit up your Emacs nREPL
