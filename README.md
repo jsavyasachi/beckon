@@ -143,10 +143,8 @@ common problems doesn't help you, please add a [new issue][new-issue] and we'll
 see what we can do about it!
 
 **Q:** My infinite sequence doesn't work with this library, why is that?  
-**A:** This library is designed to be easy to use for Clojure developers,
-  without sacrificing speed. As such, the collection of functions are realized
-  within Beckon and stored within a Java array. An infinite sequence doesn't fit
-  in a Java array, sadly.
+**A:** For speed, Beckon realizes the collection of functions into a Java array.
+  An infinite sequence doesn't fit in a Java array, sadly.
 
 **Q:** For some reason, keywords, symbols and other things which are clearly not
   functions are allowed in the collection of functions! Why is that?  
