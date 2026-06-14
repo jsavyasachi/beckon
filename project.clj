@@ -1,4 +1,4 @@
-(defproject net.clojars.savya/beckon "0.4.0"
+(defproject net.clojars.savya/beckon "0.4.1"
   :description "Handle POSIX signals in Clojure."
   :url "https://github.com/jsavyasachi/beckon"
   :license {:name "Eclipse Public License"

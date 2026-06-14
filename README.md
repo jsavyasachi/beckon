@@ -18,13 +18,13 @@ simple fashion.
 Leiningen (`project.clj`):
 
 ```clj
-[net.clojars.savya/beckon "0.4.0"]
+[net.clojars.savya/beckon "0.4.1"]
 ```
 
 Clojure CLI (`deps.edn`):
 
 ```clj
-net.clojars.savya/beckon {:mvn/version "0.4.0"}
+net.clojars.savya/beckon {:mvn/version "0.4.1"}
 ```
 
 beckon runs on JDK 8 or later with **no extra JVM flags**. It wraps
@@ -175,8 +175,8 @@ ships as a **separate package**,
 macOS/BSD `kqueue`). Add it alongside beckon:
 
 ```clj
-[net.clojars.savya/beckon "0.4.0"]
-[net.clojars.savya/beckon-ffm "0.1.0"]
+[net.clojars.savya/beckon "0.4.1"]
+[net.clojars.savya/beckon-ffm "0.1.1"]
 ```
 
 then start the JVM with `-Dbeckon.signal.backend=ffm
