@@ -1,14 +1,8 @@
 name: deps
 
 # Weekly dependency check via antq (https://github.com/liquidz/antq).
-# antq natively reads project.clj, deps.edn, and bb.edn, so it covers Leiningen
-# and tools.deps projects uniformly. GitHub Actions pins are intentionally left
-# to a separate process (--skip=github-action --exclude org.clojure/clojure) since the default token cannot
-# push workflow-file changes.
-#
-# This job only pushes a branch (contents: write) and links to the compare page.
-# It never calls the pull-request API, so GitHub Actions is NOT granted the
-# "create and approve pull requests" capability.
+# antq natively reads project.clj, deps.edn, and bb.edn, and the GitHub Actions
+# pins below, so it covers Leiningen and tools.deps projects uniformly.
 on:
   schedule:
     - cron: '23 6 * * 1'   # Mondays 06:23 UTC
@@ -16,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   antq:
@@ -33,24 +28,16 @@ jobs:
         run: >
           clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}}'
           -M -m antq.core --upgrade --force --skip=github-action --exclude org.clojure/clojure
-      - name: Push branch and link to a pull request
-        run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo 'All dependencies up to date.' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git checkout -B deps/antq
-          git commit -am 'chore(deps): bump outdated dependencies'
-          git push -f origin deps/antq
-          {
-            echo '### Dependency upgrades available';
-            echo '';
-            echo "Pushed branch \`deps/antq\`. Open a pull request:";
-            echo "https://github.com/${{ github.repository }}/pull/new/deps/antq";
-            echo '';
-            echo '```diff';
-            git --no-pager diff 'HEAD~1' --stat;
-            echo '```';
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: deps/antq
+          delete-branch: true
+          commit-message: 'chore(deps): bump outdated dependencies'
+          title: 'chore(deps): bump outdated dependencies'
+          body: |
+            Automated dependency check by [antq](https://github.com/liquidz/antq).
+
+            Review the bumps, confirm CI is green, then merge. Major upgrades may
+            need manual validation before merging.
+          labels: dependencies
