@@ -3,7 +3,7 @@ name: deps
 # Weekly dependency check via antq (https://github.com/liquidz/antq).
 # antq natively reads project.clj, deps.edn, and bb.edn, so it covers Leiningen
 # and tools.deps projects uniformly. GitHub Actions pins are intentionally left
-# to a separate process (--skip=github-action) since the default token cannot
+# to a separate process (--skip=github-action --exclude org.clojure/clojure) since the default token cannot
 # push workflow-file changes.
 #
 # This job only pushes a branch (contents: write) and links to the compare page.
@@ -32,7 +32,7 @@ jobs:
       - name: Upgrade outdated dependencies
         run: >
           clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "2.11.1276"}}}'
-          -M -m antq.core --upgrade --force --skip=github-action
+          -M -m antq.core --upgrade --force --skip=github-action --exclude org.clojure/clojure
       - name: Push branch and link to a pull request
         run: |
           if [ -z "$(git status --porcelain)" ]; then
