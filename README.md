@@ -14,6 +14,10 @@ simple fashion.
 
 ## Installation
 
+Use `beckon` by default. It runs on JDK 8+ with no extra JVM flags. Use
+[`beckon-ffm`](https://github.com/jsavyasachi/beckon-ffm) only if you want the
+experimental Foreign Function & Memory backend on JDK 22+.
+
 Leiningen (`project.clj`):
 
 ```clj
