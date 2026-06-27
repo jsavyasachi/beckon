@@ -188,9 +188,9 @@ JDK 22+, whereas this core jar targets JDK 8; `sun.misc` stays the default.
 
 ## License
 
-Copyright © 2013 Jean Niklas L'orange
+Copyright © 2013 Jean Niklas L'orange.
 
-Maintenance fork (2026) by Savyasachi, preserving the original Eclipse Public
-License.  Original project: https://github.com/hyPiRion/beckon
+Maintenance fork (2026) by Savyasachi, original: https://github.com/hyPiRion/beckon.
+Distributed under the [Eclipse Public License 1.0](https://www.eclipse.org/legal/epl-v10.html), preserving the original license.
 
 Distributed under the Eclipse Public License, the same as Clojure.
