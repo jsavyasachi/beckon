@@ -1,8 +1,8 @@
 (defproject net.clojars.savya/beckon "0.4.1"
   :description "Handle POSIX signals in Clojure."
   :url "https://github.com/jsavyasachi/beckon"
-  :license {:name "Eclipse Public License"
-            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :license {:name "Eclipse Public License 1.0"
+            :url "https://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.12.5"]]
   :source-paths ["src/clojure"]
   :java-source-paths ["src/java"]
