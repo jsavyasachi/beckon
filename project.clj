@@ -10,4 +10,8 @@
   ;; for sun.misc.Signal/SignalHandler, which beckon deliberately wraps and which
   ;; have no public replacement. -Xlint:-options silences the source/target 8
   ;; "obsolete" notice. Both are intentional; do not remove.
-  :javac-options ["-target" "8" "-source" "8" "-Xlint:-options" "-XDignore.symbol.file"])
+  :javac-options ["-target" "8" "-source" "8" "-Xlint:-options" "-XDignore.symbol.file"]
+  :deploy-repositories [["clojars" {:url "https://repo.clojars.org"
+                                    :username :env/clojars_username
+                                    :password :env/clojars_password
+                                    :sign-releases false}]])
