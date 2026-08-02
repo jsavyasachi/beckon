@@ -2,7 +2,7 @@
 
 [![Clojars Project](https://img.shields.io/clojars/v/net.clojars.savya/beckon.svg)](https://clojars.org/net.clojars.savya/beckon)
 [![cljdoc](https://cljdoc.org/badge/net.clojars.savya/beckon)](https://cljdoc.org/d/net.clojars.savya/beckon/CURRENT)
-[![test](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml/badge.svg)](https://github.com/jsavyasachi/beckon/actions/workflows/ci.yml)
+[![test](https://github.com/jsavyasachi/beckon/actions/workflows/test.yml/badge.svg)](https://github.com/jsavyasachi/beckon/actions/workflows/test.yml)
 
 A Clojure library to handle POSIX signals in JVM applications with style and
 grace. Sets up with the dirty parts and let you work with it in a (relatively)
