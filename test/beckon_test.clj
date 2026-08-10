@@ -3,14 +3,15 @@
             [beckon :as beckon])
   (:import (com.hypirion.beckon SignalRegistererHelper)))
 
-;; Use SIGUSR2: its default disposition is to terminate the JVM, but every test
-;; installs a beckon handler before raising it, so delivery runs our code rather
-;; than killing the runner. Reset all beckon-owned handlers after each test.
+;; Use SIGUSR2: its default disposition is to terminate the JVM. Every test
+;; installs a beckon handler before it raises the signal, thus delivery runs our
+;; code and does not stop the runner. Reset all beckon-owned handlers after each
+;; test.
 (use-fixtures :each (fn [run] (try (run) (finally (beckon/reinit-all!)))))
 
-;; This whole suite is the backend-agnostic behavioral spec: it runs unchanged
-;; against whichever backend `-Dbeckon.signal.backend` selects (default sunmisc;
-;; CI also runs it under ffm on Linux/JDK 22+).
+;; This suite is the backend-agnostic behavioral spec. It runs without changes
+;; against the backend that `-Dbeckon.signal.backend` selects (default sunmisc;
+;; CI also runs it with ffm on Linux/JDK 22+).
 (deftest backend-selection
   (testing "the backend that loaded matches the one requested"
     (let [active (SignalRegistererHelper/backendName)]
@@ -22,8 +23,8 @@
   (testing "the same signal name yields the identical atom"
     (is (identical? (beckon/signal-atom "USR2") (beckon/signal-atom "USR2"))))
   (testing "different signals yield different atoms"
-    ;; WINCH (terminal resize), not USR1: the JVM reserves SIGUSR1 internally on
-    ;; some platforms (notably JDK 8 on Linux), so installing a handler there
+    ;; WINCH (terminal resize), not USR1: the JVM keeps SIGUSR1 for internal use
+    ;; on some platforms (JDK 8 on Linux, for example). A handler on SIGUSR1
     ;; throws "Signal already used by VM or OS".
     (is (not (identical? (beckon/signal-atom "USR2") (beckon/signal-atom "WINCH"))))))
 
@@ -32,14 +33,14 @@
     (is (seq? (seq @(beckon/signal-atom "USR2"))))))
 
 (deftest handler-runs-on-raise
-  (testing "a handler set in the atom is invoked when the signal is raised"
+  (testing "beckon calls a handler in the atom when the signal is raised"
     (let [ran (promise)]
       (reset! (beckon/signal-atom "USR2") [(fn [] (deliver ran true))])
       (beckon/raise! "USR2")
       (is (true? (deref ran 2000 :timed-out))))))
 
 (deftest all-handlers-run
-  (testing "every Runnable in the collection is invoked on a single raise"
+  (testing "beckon calls every Runnable in the collection on a single raise"
     (let [hits  (atom 0)
           three (java.util.concurrent.CountDownLatch. 3)
           bump  (fn [] (swap! hits inc) (.countDown three))]
@@ -49,6 +50,6 @@
       (is (= 3 @hits)))))
 
 (deftest empty-handler-collection-is-a-noop
-  (testing "raising with no handlers installed does not throw"
+  (testing "a raise with no handler installed throws no exception"
     (reset! (beckon/signal-atom "USR2") [])
     (is (nil? (beckon/raise! "USR2")))))
