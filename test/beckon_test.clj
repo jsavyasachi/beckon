@@ -53,3 +53,23 @@
   (testing "a raise with no handler installed throws no exception"
     (reset! (beckon/signal-atom "USR2") [])
     (is (nil? (beckon/raise! "USR2")))))
+
+(deftest nil-handler-set-is-rejected
+  (testing "a signal atom cannot be reset to nil"
+    (is (thrown? IllegalStateException
+                 (reset! (beckon/signal-atom "USR2") nil)))))
+
+(deftest clearing-handlers-removes-them-from-dispatch
+  (testing "a handler installed before a clear is not called on later delivery"
+    (let [hits (atom 0)
+          first-run (promise)
+          handler (fn []
+                    (swap! hits inc)
+                    (deliver first-run true))]
+      (reset! (beckon/signal-atom "USR2") [handler])
+      (beckon/raise! "USR2")
+      (is (true? (deref first-run 2000 :timed-out)))
+      (reset! (beckon/signal-atom "USR2") [])
+      (beckon/raise! "USR2")
+      (Thread/sleep 100)
+      (is (= 1 @hits)))))

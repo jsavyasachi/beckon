@@ -1,5 +1,11 @@
 (ns beckon
-  (:import (com.hypirion.beckon SignalAtoms SignalRegisterer)))
+  (:import (clojure.lang Seqable)
+           (com.hypirion.beckon SignalAtoms SignalRegisterer)))
+
+(defn- handler-collection?
+  [handlers]
+  (and (instance? Seqable handlers)
+       (every? #(instance? Runnable %) handlers)))
 
 (defn signal-atom
   "Returns the beckon atom of the signal with the name signal-name. A change in
@@ -22,7 +28,9 @@
   signal-name must be a legal POSIX signal, where SIG is omitted from the first
   part of the name."
   [signal-name]
-  (SignalAtoms/getSignalAtom signal-name))
+  (let [handler-atom (SignalAtoms/getSignalAtom signal-name)]
+    (.setValidator handler-atom handler-collection?)
+    handler-atom))
 
 (defn raise!
   "Raises a signal of the type specified. The signal handling procedure then
