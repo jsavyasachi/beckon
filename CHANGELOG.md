@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.3] - 2026-08-17
+
+### Fixed
+
+- A signal atom rejects nil and non-`Runnable` handler sets via a validator, so
+  a bad handler can no longer NPE on delivery.
+- Clearing a signal's handler set removes the handlers from dispatch.
+
 ## [0.4.2] - 2026-07-12
 
 ### Changed
