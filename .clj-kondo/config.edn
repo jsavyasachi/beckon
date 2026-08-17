@@ -1,0 +1,4 @@
+{:linters
+ {:refer-all
+  {:level :off}} ; test/beckon_test.clj refers clojure.test vars for its established test style.
+}
