@@ -170,7 +170,7 @@ macOS/BSD `kqueue`). Add it with beckon:
 
 ```clj
 [net.clojars.savya/beckon "0.4.2"]
-[net.clojars.savya/beckon-ffm "0.1.1"]
+[net.clojars.savya/beckon-ffm "0.1.7"]
 ```
 
 Then start the JVM with `-Dbeckon.signal.backend=ffm
