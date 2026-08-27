@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add explicit default, ignored, chained, current-handler, and restoration APIs.
+- Reject process-wide default/ignored changes for HotSpot's reserved SIGUSR2.
+
 ## [0.5.0] - 2026-08-27
 
 ### Added

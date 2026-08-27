@@ -1,6 +1,7 @@
 (ns beckon
   (:import (clojure.lang Seqable)
-           (com.hypirion.beckon SignalAtoms SignalRegisterer)))
+           (com.hypirion.beckon SignalAtoms SignalRegisterer)
+           (sun.misc SignalHandler)))
 
 (defn- handler-collection?
   [handlers]
@@ -40,6 +41,31 @@
   part of the name."
   [signal-name]
   (SignalRegisterer/raiseSignal signal-name))
+
+(defn current-handler
+  "Returns the process-wide JVM SignalHandler currently installed for signal-name."
+  [signal-name]
+  (SignalRegisterer/currentHandler signal-name))
+
+(defn default-handler!
+  "Installs SIG_DFL. SIGUSR2 is rejected because HotSpot reserves it."
+  [signal-name]
+  (SignalRegisterer/setDefaultHandler signal-name))
+
+(defn ignored-handler!
+  "Installs SIG_IGN. SIGUSR2 is rejected because HotSpot reserves it."
+  [signal-name]
+  (SignalRegisterer/setIgnoredHandler signal-name))
+
+(defn chain-handler!
+  "Installs a beckon folder that invokes handler after beckon's handlers."
+  [signal-name ^SignalHandler handler]
+  (SignalRegisterer/chainHandler signal-name handler))
+
+(defn restore-handler!
+  "Restores the exact disposition saved before beckon's first change."
+  [signal-name]
+  (SignalRegisterer/restoreHandler signal-name))
 
 (defn reinit!
   "Resets the signal handler of signal-name to its state at the start of this

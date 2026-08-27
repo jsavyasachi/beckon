@@ -11,8 +11,13 @@ import clojure.lang.ISeq;
 public class SignalFolder implements SignalHandler {
     final Seqable originalList;
     final private Runnable[] fns;
+    private final SignalHandler chained;
 
     public SignalFolder(Seqable funs) {
+        this(funs, null);
+    }
+
+    public SignalFolder(Seqable funs, SignalHandler chained) {
         ISeq seq = funs.seq();
         // seq may be null
         if (seq == null) {
@@ -26,6 +31,7 @@ public class SignalFolder implements SignalHandler {
             }
         }
         originalList = funs;
+        this.chained = chained;
     }
 
     public void handle(Signal sig) {
@@ -37,6 +43,9 @@ public class SignalFolder implements SignalHandler {
             catch (Exception e) {
                 break;
             }
+        }
+        if (chained != null) {
+            chained.handle(sig);
         }
     }
 }
