@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-27
+
 ### Added
 
 - Add explicit default, ignored, chained, current-handler, and restoration APIs.
