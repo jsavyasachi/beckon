@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add configurable synchronous, serial, parallel, and bounded asynchronous
+  signal callback dispatch policies.
+
 ## [0.5.0] - 2026-08-27
 
 ### Added

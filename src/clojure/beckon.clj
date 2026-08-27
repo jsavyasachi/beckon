@@ -1,6 +1,46 @@
 (ns beckon
   (:import (clojure.lang Seqable)
-           (com.hypirion.beckon SignalAtoms SignalRegisterer)))
+           (com.hypirion.beckon SignalAtoms SignalFolder SignalRegisterer)
+           (java.util.concurrent ExecutorService)))
+
+(def ^:private current-dispatch-policy (atom :synchronous))
+
+(defn dispatch-policy
+  "Returns the currently configured dispatch policy, initially :synchronous."
+  [] @current-dispatch-policy)
+
+(defn serial-policy
+  "Returns a policy that serializes deliveries for each signal on executor."
+  [executor]
+  {:mode :serial :executor executor})
+
+(defn parallel-policy
+  "Returns a policy that may overlap callbacks for the same signal on executor."
+  [executor]
+  {:mode :parallel :executor executor})
+
+(defn bounded-policy
+  "Returns a non-blocking policy that drops callbacks rejected by executor."
+  [executor]
+  {:mode :bounded :executor executor})
+
+(defn set-dispatch-policy!
+  "Configures callback dispatch. The executor remains owned by the caller.
+
+  Policy is :synchronous or a policy map returned by serial-policy,
+  parallel-policy, or bounded-policy."
+  [policy]
+  (let [[mode executor] (if (keyword? policy)
+                          [(name policy) nil]
+                          [(some-> (:mode policy) name) (:executor policy)])]
+    (when-not (contains? #{"synchronous" "serial" "parallel" "bounded"} mode)
+      (throw (IllegalArgumentException. (str "Unknown dispatch policy: " policy))))
+    (when (and (not= mode "synchronous")
+               (not (instance? ExecutorService executor)))
+      (throw (IllegalArgumentException. "An ExecutorService is required for asynchronous dispatch")))
+    (SignalFolder/configureDispatch mode executor)
+    (reset! current-dispatch-policy policy)
+    policy))
 
 (defn- handler-collection?
   [handlers]

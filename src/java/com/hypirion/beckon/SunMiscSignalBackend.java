@@ -26,7 +26,7 @@ public class SunMiscSignalBackend implements SignalBackend {
 
     private SignalHandler setHandler(String signame, Seqable fns) {
         Signal sig = new Signal(signame);
-        SignalFolder folder = new SignalFolder(fns);
+        SignalFolder folder = new SignalFolder(signame, fns);
         return Signal.handle(sig, folder);
     }
 
