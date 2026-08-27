@@ -8,6 +8,8 @@
 - Reject process-wide default/ignored changes for HotSpot's reserved SIGUSR2.
 - Add configurable synchronous, serial, parallel, and bounded asynchronous
   signal callback dispatch policies.
+- Add bounded subprocess coverage for external signal delivery, default-handler
+  restoration, reserved signals, and repeated reset operations.
 
 ## [0.5.0] - 2026-08-27
 

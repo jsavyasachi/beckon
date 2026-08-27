@@ -3,8 +3,172 @@
             [beckon :as beckon])
   (:import (com.hypirion.beckon SignalFolder SignalRegistererHelper)
            (sun.misc Signal SignalHandler)
+           (java.io BufferedReader InputStreamReader)
            (java.util.concurrent ArrayBlockingQueue CountDownLatch Executors
                                   ThreadPoolExecutor TimeUnit)))
+
+(def ^:private subprocess-timeout-ms 5000)
+(def ^:private posix-host?
+  (not (re-find #"(?i)windows" (System/getProperty "os.name"))))
+
+(defn- child-handler
+  [label]
+  (fn []
+    (println label)
+    (flush)
+    (Thread/sleep 500)
+    (System/exit 0)))
+
+(defn- run-child-mode
+  [mode]
+  (case mode
+    "delivery"
+    (do
+      (reset! (beckon/signal-atom "USR2") [(child-handler "received")])
+      (println "ready")
+      (flush)
+      (Thread/sleep 10000))
+
+    "restore"
+    (do
+      (reset! (beckon/signal-atom "USR2") [(child-handler "received")])
+      (beckon/reinit! "USR2")
+      (println "restored")
+      (flush)
+      (Thread/sleep 10000))
+
+    "reserved"
+    (try
+      (beckon/signal-atom "KILL")
+      (println "reserved-accepted")
+      (flush)
+      (System/exit 1)
+      (catch Throwable _
+        (println "reserved-rejected")
+        (flush)))
+
+    "repeated-reset"
+    (do
+      (let [atom (beckon/signal-atom "USR2")]
+        (reset! atom [(child-handler "received")])
+        (beckon/reinit! "USR2")
+        (beckon/reinit! "USR2")
+        (beckon/reinit-all!)
+        (beckon/reinit-all!)
+        (reset! atom [(child-handler "received")]))
+      (println "ready")
+      (flush)
+      (Thread/sleep 10000))
+
+    (throw (ex-info "unknown child mode" {:mode mode}))))
+
+(defn -main
+  [& args]
+  (when (= "--child" (first args))
+    (run-child-mode (second args))))
+
+(defn- bounded-read-line
+  [^BufferedReader reader]
+  (let [read-line (future (.readLine reader))
+        result (deref read-line subprocess-timeout-ms ::read-timeout)]
+    (when (= ::read-timeout result)
+      (future-cancel read-line))
+    result))
+
+(defn- bounded-read-rest
+  [^BufferedReader reader]
+  (let [read-rest (future (slurp reader))
+        result (deref read-rest subprocess-timeout-ms ::read-timeout)]
+    (when (= ::read-timeout result)
+      (future-cancel read-rest))
+    result))
+
+(defn- child-process
+  [mode]
+  (let [java (str (System/getProperty "java.home") java.io.File/separator
+                  "bin" java.io.File/separator "java")
+        command [java "-cp" (System/getProperty "java.class.path")
+                 "clojure.main" "-m" "beckon-test" "--child" mode]
+        builder (.redirectErrorStream (ProcessBuilder. ^java.util.List command) true)
+        process (.start builder)
+        reader (BufferedReader. (InputStreamReader. (.getInputStream process)))
+        first-line (bounded-read-line reader)]
+    {:process process
+     :reader reader
+     :first-line first-line}))
+
+(defn- finish-child
+  [{:keys [^Process process ^BufferedReader reader first-line]}]
+  (let [rest (if (= ::read-timeout first-line)
+               ::read-timeout
+               (bounded-read-rest reader))
+        exited? (.waitFor process subprocess-timeout-ms TimeUnit/MILLISECONDS)]
+    (when-not exited?
+      (.destroyForcibly process)
+      (.waitFor process subprocess-timeout-ms TimeUnit/MILLISECONDS))
+    {:exit (when exited? (.exitValue process))
+     :output (str first-line "\n" rest)
+     :timed-out (or (= ::read-timeout first-line)
+                    (= ::read-timeout rest)
+                    (not exited?))}))
+
+(defn- send-signal!
+  [^Process process signal]
+  (let [kill (.start (ProcessBuilder. ^java.util.List
+                                      ["kill" (str "-" signal)
+                                       (str (.pid process))]))]
+    (is (.waitFor kill subprocess-timeout-ms TimeUnit/MILLISECONDS)
+        (str "timed out waiting for kill -" signal))
+    (is (= 0 (.exitValue kill)) (str "kill -" signal " failed"))))
+
+(defn- signal-child!
+  [mode]
+  (let [child (child-process mode)]
+    (is (= (if (= mode "restore") "restored" "ready") (:first-line child))
+        (str "child did not become ready: " child))
+    (send-signal! (:process child) (if (= mode "restore") "TERM" "USR2"))
+    (finish-child child)))
+
+(defn- reserved-child!
+  []
+  (let [child (child-process "reserved")]
+    (finish-child child)))
+
+(deftest subprocess-delivers-actual-signal
+  (testing "an OS-delivered signal reaches a beckon handler"
+    (if-not posix-host?
+      (is true "skipped: OS does not provide POSIX signals")
+      (let [{:keys [exit output timed-out]} (signal-child! "delivery")]
+        (is (not timed-out) (str "child timed out; output: " output))
+        (is (= 0 exit) (str "child output: " output))
+        (is (re-find #"received" output) (str "child output: " output))))))
+
+(deftest subprocess-restores-default-handler
+  (testing "reinit restores the default disposition in a fresh process"
+    (if-not posix-host?
+      (is true "skipped: OS does not provide POSIX signals")
+      (let [{:keys [exit output timed-out]} (signal-child! "restore")]
+        (is (not timed-out) (str "child timed out; output: " output))
+        (is (not= 0 exit) (str "default signal handler did not terminate child: " output))
+        (is (not (re-find #"received" output)) (str "child output: " output))))))
+
+(deftest subprocess-rejects-reserved-signal
+  (testing "a signal reserved by the OS cannot be claimed"
+    (if-not posix-host?
+      (is true "skipped: OS does not provide POSIX signals")
+      (let [{:keys [exit output timed-out]} (reserved-child!)]
+        (is (not timed-out) (str "child timed out; output: " output))
+        (is (= 0 exit) (str "child output: " output))
+        (is (re-find #"reserved-rejected" output) (str "child output: " output))))))
+
+(deftest subprocess-survives-repeated-resets
+  (testing "repeated reset operations preserve later signal registration"
+    (if-not posix-host?
+      (is true "skipped: OS does not provide POSIX signals")
+      (let [{:keys [exit output timed-out]} (signal-child! "repeated-reset")]
+        (is (not timed-out) (str "child timed out; output: " output))
+        (is (= 0 exit) (str "child output: " output))
+        (is (re-find #"received" output) (str "child output: " output))))))
 
 ;; Use SIGUSR2: its default disposition is to terminate the JVM. Every test
 ;; installs a beckon handler before it raises the signal, thus delivery runs our
@@ -83,7 +247,7 @@
 
 ;; This suite is the backend-agnostic behavioral spec. It runs without changes
 ;; against the backend that `-Dbeckon.signal.backend` selects (default sunmisc;
-;; CI also runs it with ffm on Linux/JDK 22+).
+;; this repository's CI currently exercises sunmisc only).
 (deftest backend-selection
   (testing "the backend that loaded matches the one requested"
     (let [active (SignalRegistererHelper/backendName)]
