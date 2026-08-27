@@ -1,14 +1,85 @@
 (ns beckon-test
   (:require [clojure.test :refer :all]
             [beckon :as beckon])
-  (:import (com.hypirion.beckon SignalRegistererHelper)
-           (sun.misc Signal SignalHandler)))
+  (:import (com.hypirion.beckon SignalFolder SignalRegistererHelper)
+           (sun.misc Signal SignalHandler)
+           (java.util.concurrent ArrayBlockingQueue CountDownLatch Executors
+                                  ThreadPoolExecutor TimeUnit)))
 
 ;; Use SIGUSR2: its default disposition is to terminate the JVM. Every test
 ;; installs a beckon handler before it raises the signal, thus delivery runs our
 ;; code and does not stop the runner. Reset all beckon-owned handlers after each
 ;; test.
-(use-fixtures :each (fn [run] (try (run) (finally (beckon/reinit-all!)))))
+(use-fixtures :each (fn [run]
+                      (try (run)
+                           (finally
+                             (beckon/set-dispatch-policy! :synchronous)
+                             (beckon/reinit-all!)))))
+
+(deftest synchronous-dispatch-is-the-default
+  (is (= :synchronous (beckon/dispatch-policy))))
+
+(deftest serial-dispatch-does-not-overlap-callbacks
+  (let [executor (Executors/newFixedThreadPool 2)
+        started (CountDownLatch. 1)
+        release (CountDownLatch. 1)
+        max-running (atom 0)
+        running (atom 0)
+        callback (fn []
+                   (swap! running inc)
+                   (swap! max-running max @running)
+                   (.countDown started)
+                   (.await release 2 TimeUnit/SECONDS)
+                   (swap! running dec))]
+    (try
+      (beckon/set-dispatch-policy! (beckon/serial-policy executor))
+      (let [folder (SignalFolder. "USR2" [callback])]
+        (future (.handle folder nil))
+        (is (.await started 2 TimeUnit/SECONDS))
+        (future (.handle folder nil))
+        (Thread/sleep 100)
+        (is (= 1 @max-running))
+        (.countDown release)
+        (Thread/sleep 100)
+        (is (= 1 @max-running)))
+      (finally
+        (.shutdownNow executor)))))
+
+(deftest parallel-dispatch-allows-same-signal-callbacks-to-overlap
+  (let [executor (Executors/newFixedThreadPool 2)
+        ready (CountDownLatch. 2)
+        release (CountDownLatch. 1)
+        callback (fn [] (.countDown ready) (.await release 2 TimeUnit/SECONDS))]
+    (try
+      (beckon/set-dispatch-policy! (beckon/parallel-policy executor))
+      (.handle (SignalFolder. "USR2" [callback callback]) nil)
+      (is (.await ready 2 TimeUnit/SECONDS))
+      (.countDown release)
+      (finally
+        (.shutdownNow executor)))))
+
+(deftest bounded-dispatch-drops-callbacks-rejected-by-a-full-queue
+  (let [executor (ThreadPoolExecutor. 1 1 0 TimeUnit/MILLISECONDS
+                                     (ArrayBlockingQueue. 1))
+        started (CountDownLatch. 1)
+        release (CountDownLatch. 1)
+        hits (atom 0)
+        callback (fn [] (swap! hits inc)
+                   (when (= 1 @hits)
+                     (.countDown started)
+                     (.await release 2 TimeUnit/SECONDS)))]
+    (try
+      (beckon/set-dispatch-policy! (beckon/bounded-policy executor))
+      (let [folder (SignalFolder. "USR2" [callback])]
+        (.handle folder nil)
+        (is (.await started 2 TimeUnit/SECONDS))
+        (.handle folder nil)
+        (.handle folder nil)
+        (.countDown release)
+        (Thread/sleep 100)
+        (is (= 2 @hits)))
+      (finally
+        (.shutdownNow executor)))))
 
 ;; This suite is the backend-agnostic behavioral spec. It runs without changes
 ;; against the backend that `-Dbeckon.signal.backend` selects (default sunmisc;

@@ -56,10 +56,11 @@ POSIX signal to the VM:
 ; prints nothing
 ```
 
-Why did `raise!` print nothing? When the JVM receives a signal, it starts a new
-thread with maximum priority and handles the signal asynchronously. Thus the
-output does not show in the nREPL window. Look in the `*nrepl-server*` buffer to
-see the message.
+Why did `raise!` print nothing? By default the JVM receives a signal on a
+maximum-priority signal thread, and beckon runs callbacks there synchronously.
+Thus the output does not show in the nREPL window. Look in the `*nrepl-server*`
+buffer to see the message. See [Dispatch policies](#dispatch-policies) if
+callbacks must not run on that thread.
 
 By default, signals such as SIGTERM and SIGINT terminate the running VM. Be
 careful. You can experiment with them in a REPL:
@@ -82,10 +83,12 @@ That is all you need to know to work with beckon.
 
 ## Usage
 
-beckon has 12 core functions: `signal-atom`, `add-handler!`,
+beckon has 17 core functions: `signal-atom`, `add-handler!`,
 `remove-handler!`, `clear-handlers!`, `raise!`, `reinit!`, `reinit-all!`,
 `current-handler`, `default-handler!`, `ignored-handler!`,
-`chain-handler!`, and `restore-handler!`.
+`chain-handler!`, `restore-handler!`, `dispatch-policy`,
+`set-dispatch-policy!`, `serial-policy`, `parallel-policy`, and
+`bounded-policy`.
 Usually you need only `add-handler!` and `remove-handler!` in a production
 system. The other functions help you to inspect or reset signal handling.
 
@@ -164,13 +167,42 @@ to check that your signal handlers work as intended.
 JVM started. `reinit!` takes one argument, the signal to reset. `reinit-all!`
 takes no argument and resets every signal.
 
+### Dispatch policies
+
+Callbacks run synchronously on the JVM signal thread by default. Configure an
+executor-backed policy when callbacks can block or take meaningful time:
+
+```clj
+(def executor (java.util.concurrent.Executors/newFixedThreadPool 4))
+(beckon/set-dispatch-policy! (beckon/serial-policy executor))
+```
+
+The policy applies to future deliveries; callbacks already submitted continue
+under their original policy. beckon does not shut down a caller-supplied
+executor.
+
+| Policy | Ordering and overlap | Overload behavior |
+| --- | --- | --- |
+| `:synchronous` | Runs callbacks in collection order on the signal thread; callbacks for a signal cannot overlap. | No queue; the signal thread runs the callback directly. This is the default. |
+| `(serial-policy executor)` | Queues one delivery at a time per signal. Deliveries for the same signal are ordered and never overlap. Different signals may run in parallel. | Uses the executor's normal `execute` behavior; a rejected submission is propagated to the signal thread. |
+| `(parallel-policy executor)` | Submits each callback independently. Callbacks for the same signal may overlap; no callback ordering is guaranteed. | Uses the executor's normal `execute` behavior; a rejection is propagated to the signal thread. |
+| `(bounded-policy executor)` | Same overlap and ordering behavior as parallel dispatch. | Non-blocking. If `execute` rejects because the caller's bounded queue is full (or the executor is shut down), that callback is dropped. Other callbacks and later deliveries continue. |
+
+For bounded dispatch, configure the supplied executor with the capacity and
+thread count you want, for example a `ThreadPoolExecutor` with an
+`ArrayBlockingQueue`. A bounded policy never waits for queue space and therefore
+does not put application backpressure on the JVM signal thread.
+
+In asynchronous policies, an `Exception` from one callback does not cancel
+other callbacks that were submitted for the same delivery. As with the
+historical synchronous behavior, `Error` is not caught by beckon.
+
 ## How is a signal handled?
 
 When the JVM receives a signal, it starts a new thread at
-`Thread.MAX_PRIORITY` and runs it asynchronously. This is why nREPL shows no
-output, although output works in a command-line program. It is better to send a
-message from the signal handler to a logger or a printer than to print in the
-signal handler.
+`Thread.MAX_PRIORITY`. With the default policy, beckon runs the callbacks on
+that thread. Executor-backed policies move callback work to the supplied
+executor, while the signal thread only performs the dispatch operation.
 
 ## "FAQ"
 
