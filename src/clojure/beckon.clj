@@ -51,3 +51,24 @@
   "Resets all signal handlers of beckon to their default values."
   []
   (SignalRegisterer/resetAllHandlers))
+
+(defn add-handler!
+  "Adds handler to the signal's handler collection atomically.
+
+  This is safer than reading the collection and using reset!, because
+  concurrent registrations cannot overwrite one another."
+  [signal-name handler]
+  (swap! (signal-atom signal-name) conj handler))
+
+(defn remove-handler!
+  "Removes handler from the signal's handler collection atomically.
+
+  Handlers are matched by reference identity."
+  [signal-name handler]
+  (swap! (signal-atom signal-name)
+         #(remove (fn [candidate] (identical? candidate handler)) %)))
+
+(defn clear-handlers!
+  "Atomically removes all handlers from signal-name's handler collection."
+  [signal-name]
+  (swap! (signal-atom signal-name) empty))

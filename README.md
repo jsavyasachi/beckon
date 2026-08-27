@@ -45,7 +45,7 @@ following:
 (require 'beckon)
 
 (let [print-function (fn [] (println "Hahah, nothing can stop me!"))]
-  (reset! (beckon/signal-atom "INT") #{print-function}))
+  (beckon/add-handler! "INT" print-function))
 ```
 
 That is all. To check that this works, use the `raise!` function, which raises a
@@ -82,10 +82,10 @@ That is all you need to know to work with beckon.
 
 ## Usage
 
-beckon has 4 core functions: `signal-atom`, `raise!`, `reinit!` and
-`reinit-all!`. Usually you need only `signal-atom` in a production system. The
-other functions help you to debug, and to reset the signal handling to the
-initial setup of signal handlers when the JVM starts.
+beckon has 7 core functions: `signal-atom`, `add-handler!`,
+`remove-handler!`, `clear-handlers!`, `raise!`, `reinit!` and `reinit-all!`.
+Usually you need only `add-handler!` and `remove-handler!` in a production
+system. The other functions help you to inspect or reset signal handling.
 
 ### `signal-atom`
 
@@ -117,6 +117,24 @@ possible.
 beckon updates the signal handler when the atom changes, but a change to the
 signal handler does not update the atom. If you use beckon, do not also set
 signal handling through another library or through the native Java interface.
+
+### `add-handler!`, `remove-handler!` and `clear-handlers!`
+
+Use these functions to compose handlers from independent components without
+replacing the entire collection:
+
+```clj
+(def cleanup (fn [] (println "cleaning up")))
+(beckon/add-handler! "INT" cleanup)
+(beckon/remove-handler! "INT" cleanup)
+(beckon/clear-handlers! "INT")
+```
+
+Each operation updates the signal atom with `swap!`, so concurrent additions
+and removals are atomic. This avoids the lost updates possible with the
+read-then-`reset!` pattern, where two components can each read the same old
+collection and the later `reset!` can overwrite the earlier registration.
+`remove-handler!` matches the handler by reference identity.
 
 ### `raise!`
 
