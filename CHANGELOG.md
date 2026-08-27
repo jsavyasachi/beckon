@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0] - Unreleased
+
+### Added
+
+- Add `add-handler!`, `remove-handler!`, and `clear-handlers!` for atomic,
+  composable updates to a signal's handler collection.
+
 ## [0.4.3] - 2026-08-17
 
 ### Fixed

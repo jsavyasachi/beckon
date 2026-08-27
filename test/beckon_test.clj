@@ -73,3 +73,51 @@
       (beckon/raise! "USR2")
       (Thread/sleep 100)
       (is (= 1 @hits)))))
+
+(deftest add-handler-registers-multiple-handlers
+  (testing "handlers added independently all run on a raise"
+    (let [hits (atom 0)
+          done (java.util.concurrent.CountDownLatch. 3)]
+      (beckon/clear-handlers! "USR2")
+      (dotimes [_ 3]
+        (beckon/add-handler! "USR2"
+                             (fn [] (swap! hits inc) (.countDown done))))
+      (beckon/raise! "USR2")
+      (is (.await done 2 java.util.concurrent.TimeUnit/SECONDS))
+      (is (= 3 @hits)))))
+
+(deftest remove-handler-removes-only-the-selected-handler
+  (testing "removing one handler leaves the other handlers active"
+    (let [removed-hits (atom 0)
+          remaining-hits (atom 0)
+          done (java.util.concurrent.CountDownLatch. 1)
+          removed (fn [] (swap! removed-hits inc))
+          remaining (fn [] (swap! remaining-hits inc) (.countDown done))]
+      (beckon/clear-handlers! "USR2")
+      (beckon/add-handler! "USR2" removed)
+      (beckon/add-handler! "USR2" remaining)
+      (beckon/remove-handler! "USR2" removed)
+      (beckon/raise! "USR2")
+      (is (.await done 2 java.util.concurrent.TimeUnit/SECONDS))
+      (is (= 0 @removed-hits))
+      (is (= 1 @remaining-hits)))))
+
+(deftest clear-handlers-removes-all-composable-handlers
+  (testing "clearing composable handlers leaves nothing to dispatch"
+    (let [hits (atom 0)
+          handler (fn [] (swap! hits inc))]
+      (beckon/clear-handlers! "USR2")
+      (beckon/add-handler! "USR2" handler)
+      (beckon/clear-handlers! "USR2")
+      (beckon/raise! "USR2")
+      (Thread/sleep 100)
+      (is (= 0 @hits)))))
+
+(deftest concurrent-handler-registration-does-not-lose-updates
+  (testing "concurrent additions atomically retain every handler"
+    (let [handler-count 100
+          _ (beckon/clear-handlers! "USR2")
+          jobs (doall (repeatedly handler-count
+                                   #(future (beckon/add-handler! "USR2" (fn [])))))]
+      (doseq [job jobs] @job)
+      (is (= handler-count (count @(beckon/signal-atom "USR2")))))))
