@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add bounded subprocess coverage for external signal delivery, default-handler
+  restoration, reserved signals, and repeated reset operations.
+
 ## [0.5.0] - 2026-08-27
 
 ### Added
