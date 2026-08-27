@@ -22,13 +22,13 @@ experimental Foreign Function & Memory backend on JDK 22+.
 Leiningen (`project.clj`):
 
 ```clj
-[net.clojars.savya/beckon "0.4.3"]
+[net.clojars.savya/beckon "0.5.0"]
 ```
 
 Clojure CLI (`deps.edn`):
 
 ```clj
-net.clojars.savya/beckon {:mvn/version "0.4.3"}
+net.clojars.savya/beckon {:mvn/version "0.5.0"}
 ```
 
 beckon runs on JDK 8 or later with **no extra JVM flags**. It wraps
@@ -187,7 +187,7 @@ ships as a **separate package**,
 macOS/BSD `kqueue`). Add it with beckon:
 
 ```clj
-[net.clojars.savya/beckon "0.4.3"]
+[net.clojars.savya/beckon "0.5.0"]
 [net.clojars.savya/beckon-ffm "0.1.7"]
 ```
 
