@@ -1,7 +1,8 @@
 (ns beckon-test
   (:require [clojure.test :refer :all]
             [beckon :as beckon])
-  (:import (com.hypirion.beckon SignalRegistererHelper)))
+  (:import (com.hypirion.beckon SignalRegistererHelper)
+           (sun.misc Signal SignalHandler)))
 
 ;; Use SIGUSR2: its default disposition is to terminate the JVM. Every test
 ;; installs a beckon handler before it raises the signal, thus delivery runs our
@@ -121,3 +122,51 @@
                                    #(future (beckon/add-handler! "USR2" (fn [])))))]
       (doseq [job jobs] @job)
       (is (= handler-count (count @(beckon/signal-atom "USR2")))))))
+
+(deftest current-handler-returns-the-pre-existing-handler
+  (testing "reading a handler does not replace it"
+    (let [sig (Signal. "WINCH")
+          prior (reify SignalHandler (handle [_ _]))]
+      (try
+        (Signal/handle sig prior)
+        (is (identical? prior (beckon/current-handler "WINCH")))
+        (finally
+          (Signal/handle sig prior))))))
+
+(deftest dispositions-restore-the-exact-pre-beckon-handler
+  (testing "default and ignored dispositions can be restored"
+    (let [sig (Signal. "WINCH")
+          prior (reify SignalHandler (handle [_ _]))]
+      (try
+        (Signal/handle sig prior)
+        (beckon/default-handler! "WINCH")
+        (beckon/restore-handler! "WINCH")
+        (is (identical? prior (beckon/current-handler "WINCH")))
+        (beckon/ignored-handler! "WINCH")
+        (beckon/restore-handler! "WINCH")
+        (is (identical? prior (beckon/current-handler "WINCH")))
+        (finally
+          (Signal/handle sig prior))))))
+
+(deftest chained-handler-preserves-and-invokes-prior-handler
+  (testing "a chained handler calls the supplied JVM handler"
+    (let [sig (Signal. "WINCH")
+          prior-hits (promise)
+          prior (reify SignalHandler
+                  (handle [_ _] (deliver prior-hits true))) ]
+      (Signal/handle sig prior)
+      (try
+        (reset! (beckon/signal-atom "WINCH") [])
+        (beckon/chain-handler! "WINCH" prior)
+        (beckon/raise! "WINCH")
+        (is (true? (deref prior-hits 2000 :timed-out)))
+        (finally
+          (beckon/restore-handler! "WINCH")))
+      (is (identical? prior (beckon/current-handler "WINCH"))))))
+
+(deftest reserved-hotspot-signal-cannot-use-process-wide-dispositions
+  (testing "explicit default and ignored modes reject SIGUSR2"
+    (is (thrown-with-msg? IllegalArgumentException #"reserved"
+                          (beckon/default-handler! "USR2")))
+    (is (thrown-with-msg? IllegalArgumentException #"reserved"
+                          (beckon/ignored-handler! "USR2")))))

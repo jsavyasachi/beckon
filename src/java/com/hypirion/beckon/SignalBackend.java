@@ -1,6 +1,7 @@
 package com.hypirion.beckon;
 
 import clojure.lang.Seqable;
+import sun.misc.SignalHandler;
 
 /**
  * Pluggable backend for OS signal handling. Every JDK- or OS-specific signal
@@ -27,4 +28,24 @@ public interface SignalBackend {
 
     /** Raise {@code signame} in the current process. */
     void raise(String signame);
+
+    default SignalHandler currentHandler(String signame) {
+        throw new UnsupportedOperationException("signal dispositions are not supported by this backend");
+    }
+
+    default void setDefaultHandler(String signame) {
+        throw new UnsupportedOperationException("signal dispositions are not supported by this backend");
+    }
+
+    default void setIgnoredHandler(String signame) {
+        throw new UnsupportedOperationException("signal dispositions are not supported by this backend");
+    }
+
+    default void chainHandler(String signame, SignalHandler handler) {
+        throw new UnsupportedOperationException("signal dispositions are not supported by this backend");
+    }
+
+    default void restoreHandler(String signame) {
+        throw new UnsupportedOperationException("signal dispositions are not supported by this backend");
+    }
 }

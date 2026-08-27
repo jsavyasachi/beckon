@@ -1,5 +1,7 @@
 package com.hypirion.beckon;
 
+import sun.misc.SignalHandler;
+
 public class SignalRegisterer {
 
     /**
@@ -51,5 +53,25 @@ public class SignalRegisterer {
         catch (LinkageError le) {
             throw new SignalHandlerNotFoundException();
         }
+    }
+
+    public static SignalHandler currentHandler(String signame) {
+        return SignalRegistererHelper.currentHandler(signame);
+    }
+
+    public static void setDefaultHandler(String signame) {
+        SignalRegistererHelper.setDefaultHandler(signame);
+    }
+
+    public static void setIgnoredHandler(String signame) {
+        SignalRegistererHelper.setIgnoredHandler(signame);
+    }
+
+    public static void chainHandler(String signame, SignalHandler handler) {
+        SignalRegistererHelper.chainHandler(signame, handler);
+    }
+
+    public static void restoreHandler(String signame) {
+        SignalRegistererHelper.restoreHandler(signame);
     }
 }

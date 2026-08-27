@@ -24,6 +24,17 @@ public class SunMiscSignalBackend implements SignalBackend {
     private final Map<String, SignalHandler> originalHandlers =
         new HashMap<String, SignalHandler>();
 
+    private static boolean reserved(String signame) {
+        return "USR2".equals(signame);
+    }
+
+    private static void rejectReserved(String signame) {
+        if (reserved(signame)) {
+            throw new IllegalArgumentException(
+                "signal " + signame + " is reserved by HotSpot; use beckon's chained handler");
+        }
+    }
+
     private SignalHandler setHandler(String signame, Seqable fns) {
         Signal sig = new Signal(signame);
         SignalFolder folder = new SignalFolder(fns);
@@ -45,7 +56,7 @@ public class SunMiscSignalBackend implements SignalBackend {
             SignalHandler original = originalHandlers.get(signame);
             Signal sig = new Signal(signame);
             Signal.handle(sig, original);
-            originalHandlers.remove(sig);
+            originalHandlers.remove(signame);
             SignalAtoms.getSignalAtom(signame).reset(currentRunnables(signame));
             // The atom's watch re-registers our folder; re-install the original.
             Signal.handle(sig, original);
@@ -72,6 +83,58 @@ public class SunMiscSignalBackend implements SignalBackend {
         } else {
             Runnable wrapped = new RunnableSignalHandler(sig, current);
             return PersistentHashSet.create(wrapped);
+        }
+    }
+
+    @Override
+    public synchronized SignalHandler currentHandler(String signame) {
+        rejectReserved(signame);
+        Signal sig = new Signal(signame);
+        SignalHandler current = Signal.handle(sig, SignalHandler.SIG_DFL);
+        try {
+            return current;
+        } finally {
+            Signal.handle(sig, current);
+        }
+    }
+
+    @Override
+    public synchronized void setDefaultHandler(String signame) {
+        rejectReserved(signame);
+        remember(signame, Signal.handle(new Signal(signame), SignalHandler.SIG_DFL));
+    }
+
+    @Override
+    public synchronized void setIgnoredHandler(String signame) {
+        rejectReserved(signame);
+        remember(signame, Signal.handle(new Signal(signame), SignalHandler.SIG_IGN));
+    }
+
+    @Override
+    public synchronized void chainHandler(String signame, SignalHandler handler) {
+        if (handler == null) throw new NullPointerException("handler");
+        rejectReserved(signame);
+        Signal sig = new Signal(signame);
+        SignalHandler old = Signal.handle(sig, SignalHandler.SIG_DFL);
+        Signal.handle(sig, old);
+        remember(signame, old);
+        Seqable runnables = old instanceof SignalFolder
+            ? ((SignalFolder) old).originalList
+            : clojure.lang.PersistentHashSet.EMPTY;
+        Signal.handle(sig, new SignalFolder(runnables, handler));
+    }
+
+    private void remember(String signame, SignalHandler old) {
+        if (!originalHandlers.containsKey(signame)) {
+            originalHandlers.put(signame, old);
+        }
+    }
+
+    @Override
+    public synchronized void restoreHandler(String signame) {
+        SignalHandler original = originalHandlers.remove(signame);
+        if (original != null) {
+            Signal.handle(new Signal(signame), original);
         }
     }
 

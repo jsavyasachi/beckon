@@ -82,8 +82,10 @@ That is all you need to know to work with beckon.
 
 ## Usage
 
-beckon has 7 core functions: `signal-atom`, `add-handler!`,
-`remove-handler!`, `clear-handlers!`, `raise!`, `reinit!` and `reinit-all!`.
+beckon has 12 core functions: `signal-atom`, `add-handler!`,
+`remove-handler!`, `clear-handlers!`, `raise!`, `reinit!`, `reinit-all!`,
+`current-handler`, `default-handler!`, `ignored-handler!`,
+`chain-handler!`, and `restore-handler!`.
 Usually you need only `add-handler!` and `remove-handler!` in a production
 system. The other functions help you to inspect or reset signal handling.
 
@@ -135,6 +137,20 @@ and removals are atomic. This avoids the lost updates possible with the
 read-then-`reset!` pattern, where two components can each read the same old
 collection and the later `reset!` can overwrite the earlier registration.
 `remove-handler!` matches the handler by reference identity.
+
+### Signal dispositions
+
+For interoperability with other JVM signal users, beckon also exposes the
+process-wide disposition directly. `current-handler` returns the exact
+pre-existing `sun.misc.SignalHandler`; `default-handler!` and
+`ignored-handler!` install `SIG_DFL` and `SIG_IGN`; and `chain-handler!` invokes
+the supplied JVM handler after beckon's handlers. `restore-handler!` returns the
+signal to the exact disposition saved before beckon's first disposition change.
+
+These operations are process-wide, not thread-local. They reject `SIGUSR2`,
+which HotSpot uses internally for thread suspension, to avoid destabilizing the
+JVM. Use `chain-handler!` with a preserved JVM handler when integrating with a
+signal already owned by another JVM component.
 
 ### `raise!`
 

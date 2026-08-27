@@ -1,6 +1,7 @@
 package com.hypirion.beckon;
 
 import clojure.lang.Seqable;
+import sun.misc.SignalHandler;
 
 /**
  * Delegates all signal operations to the selected {@link SignalBackend}, while
@@ -80,5 +81,25 @@ public class SignalRegistererHelper {
 
     static void raise(String signame) {
         BACKEND.raise(signame);
+    }
+
+    static SignalHandler currentHandler(String signame) {
+        return BACKEND.currentHandler(signame);
+    }
+
+    static void setDefaultHandler(String signame) {
+        BACKEND.setDefaultHandler(signame);
+    }
+
+    static void setIgnoredHandler(String signame) {
+        BACKEND.setIgnoredHandler(signame);
+    }
+
+    static void chainHandler(String signame, SignalHandler handler) {
+        BACKEND.chainHandler(signame, handler);
+    }
+
+    static void restoreHandler(String signame) {
+        BACKEND.restoreHandler(signame);
     }
 }
