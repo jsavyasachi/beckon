@@ -1,3 +1,7 @@
 # Introduction to beckon
 
-TODO: write [great documentation](http://jacobian.org/writing/great-documentation/what-to-write/)
+# Introduction to beckon
+
+beckon installs POSIX signal handlers for Clojure applications. See the
+README for the API, dispatch policies, signal capability queries, and the
+coordinated SIGTERM/SIGINT shutdown example.

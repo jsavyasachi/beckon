@@ -2,6 +2,9 @@ package com.hypirion.beckon;
 
 import clojure.lang.Seqable;
 import sun.misc.SignalHandler;
+import java.util.Locale;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * Delegates all signal operations to the selected {@link SignalBackend}, while
@@ -15,6 +18,13 @@ import sun.misc.SignalHandler;
  * requested; requesting it where it cannot run fails with a clear message.
  */
 public class SignalRegistererHelper {
+
+    private static final String[] CANDIDATE_SIGNALS = {
+        "HUP", "INT", "QUIT", "ILL", "ABRT", "FPE", "KILL", "SEGV",
+        "PIPE", "ALRM", "TERM", "USR1", "USR2", "CHLD", "CONT", "STOP",
+        "TSTP", "TTIN", "TTOU", "URG", "XCPU", "XFSZ", "VTALRM", "PROF",
+        "WINCH", "IO", "PWR", "SYS"
+    };
 
     private static final SignalBackend BACKEND = select();
 
@@ -62,13 +72,47 @@ public class SignalRegistererHelper {
         return BACKEND.getClass().getSimpleName();
     }
 
+    public static String normalizeSignalName(String signame) {
+        if (signame == null) {
+            throw new IllegalArgumentException("signal name must be a non-empty string");
+        }
+        String normalized = signame.trim().toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("SIG")) normalized = normalized.substring(3);
+        if (normalized.length() == 0 || !normalized.matches("[A-Z0-9]+")) {
+            throw new IllegalArgumentException("invalid signal name: " + signame);
+        }
+        return normalized;
+    }
+
+    public static boolean signalSupported(String signame) {
+        try {
+            return BACKEND.signalSupported(normalizeSignalName(signame));
+        } catch (IllegalArgumentException unsupported) {
+            return false;
+        }
+    }
+
+    public static Set<String> supportedSignals() {
+        Set<String> result = new HashSet<String>();
+        for (String candidate : CANDIDATE_SIGNALS) {
+            if (BACKEND.signalSupported(candidate)) result.add(candidate);
+        }
+        return result;
+    }
+
+    public static synchronized void shutdown() throws SignalHandlerNotFoundException {
+        BACKEND.resetAll();
+        SignalAtoms.clear();
+        SignalFolder.shutdownDispatch();
+    }
+
     static synchronized void register(String signame, Seqable fns) {
-        BACKEND.register(signame, fns);
+        BACKEND.register(normalizeSignalName(signame), fns);
     }
 
     static synchronized void resetDefaultHandler(String signame)
         throws SignalHandlerNotFoundException {
-        BACKEND.reset(signame);
+        BACKEND.reset(normalizeSignalName(signame));
     }
 
     static synchronized void resetAll() throws SignalHandlerNotFoundException {
@@ -76,30 +120,30 @@ public class SignalRegistererHelper {
     }
 
     static synchronized Seqable getHandlerSeq(String signame) {
-        return BACKEND.currentRunnables(signame);
+        return BACKEND.currentRunnables(normalizeSignalName(signame));
     }
 
     static void raise(String signame) {
-        BACKEND.raise(signame);
+        BACKEND.raise(normalizeSignalName(signame));
     }
 
     static SignalHandler currentHandler(String signame) {
-        return BACKEND.currentHandler(signame);
+        return BACKEND.currentHandler(normalizeSignalName(signame));
     }
 
     static void setDefaultHandler(String signame) {
-        BACKEND.setDefaultHandler(signame);
+        BACKEND.setDefaultHandler(normalizeSignalName(signame));
     }
 
     static void setIgnoredHandler(String signame) {
-        BACKEND.setIgnoredHandler(signame);
+        BACKEND.setIgnoredHandler(normalizeSignalName(signame));
     }
 
     static void chainHandler(String signame, SignalHandler handler) {
-        BACKEND.chainHandler(signame, handler);
+        BACKEND.chainHandler(normalizeSignalName(signame), handler);
     }
 
     static void restoreHandler(String signame) {
-        BACKEND.restoreHandler(signame);
+        BACKEND.restoreHandler(normalizeSignalName(signame));
     }
 }

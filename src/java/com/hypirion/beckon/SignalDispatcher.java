@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
+import clojure.lang.IFn;
 
 /** Dispatches signal callbacks without putting application work on the signal thread. */
 final class SignalDispatcher {
@@ -12,6 +13,9 @@ final class SignalDispatcher {
     private static volatile ExecutorService executor;
     private static final Map<String, SerialExecutor> serialExecutors =
         new ConcurrentHashMap<String, SerialExecutor>();
+    private static volatile String errorMode = "default";
+    private static volatile IFn errorCallback;
+    private static volatile long lifecycle;
 
     private SignalDispatcher() {}
 
@@ -21,9 +25,23 @@ final class SignalDispatcher {
         serialExecutors.clear();
     }
 
+    static void configureErrors(String newMode, IFn callback) {
+        errorMode = newMode;
+        errorCallback = callback;
+    }
+
+    static void shutdown() {
+        mode = "synchronous";
+        executor = null;
+        serialExecutors.clear();
+        errorMode = "default";
+        errorCallback = null;
+        lifecycle++;
+    }
+
     static void dispatch(String signame, Runnable[] callbacks) {
         if ("synchronous".equals(mode)) {
-            runSerially(callbacks);
+            runSerially(signame, callbacks);
         } else if ("serial".equals(mode)) {
             String key = signame == null ? "" : signame;
             SerialExecutor serial = serialExecutors.get(key);
@@ -33,18 +51,23 @@ final class SignalDispatcher {
                 serial = existing == null ? candidate : existing;
             }
             final Runnable[] copy = callbacks;
+            final long generation = lifecycle;
             serial.execute(new Runnable() {
-                public void run() { runSerially(copy); }
+                public void run() {
+                    if (generation == lifecycle) runSerially(signame, copy);
+                }
             });
         } else {
+            final long generation = lifecycle;
             for (final Runnable callback : callbacks) {
                 try {
                     executor.execute(new Runnable() {
                         public void run() {
+                            if (generation != lifecycle) return;
                             try {
                                 callback.run();
-                            } catch (Exception ignored) {
-                                // Match the historical behavior: callback exceptions do not escape beckon.
+                            } catch (Exception error) {
+                                handleError(signame, error, false);
                             }
                         }
                     });
@@ -58,14 +81,25 @@ final class SignalDispatcher {
         }
     }
 
-    private static void runSerially(Runnable[] callbacks) {
+    private static void runSerially(String signame, Runnable[] callbacks) {
         for (Runnable callback : callbacks) {
             try {
                 callback.run();
-            } catch (Exception ignored) {
-                break;
+            } catch (Exception error) {
+                if (!handleError(signame, error, true)) break;
             }
         }
+    }
+
+    private static boolean handleError(String signame, Exception error, boolean synchronous) {
+        String selected = "default".equals(errorMode)
+            ? (synchronous ? "stop" : "continue") : errorMode;
+        if ("log".equals(selected)) {
+            error.printStackTrace(System.err);
+        }
+        if (errorCallback != null) errorCallback.invoke(error);
+        if ("rethrow".equals(selected)) throw new RuntimeException(error);
+        return !"stop".equals(selected);
     }
 
     private static final class SerialExecutor implements java.util.concurrent.Executor {

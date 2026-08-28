@@ -37,6 +37,15 @@ public class SignalRegisterer {
         }
     }
 
+    public static void shutdown() throws SignalHandlerNotFoundException {
+        try {
+            SignalRegistererHelper.shutdown();
+        }
+        catch (LinkageError le) {
+            throw new SignalHandlerNotFoundException();
+        }
+    }
+
     /**
      * Raises a Signal with the name <code>signame</code> in the current
      * process. Will consequently call the current SignalHandler for

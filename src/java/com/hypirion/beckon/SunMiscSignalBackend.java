@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Collections;
 
 import clojure.lang.PersistentHashSet;
 import clojure.lang.Seqable;
@@ -19,6 +22,32 @@ import clojure.lang.Seqable;
  * point in beckon that depends on them.
  */
 public class SunMiscSignalBackend implements SignalBackend {
+
+    private static final String[] CANDIDATE_SIGNALS = {
+        "HUP", "INT", "QUIT", "ILL", "ABRT", "FPE", "KILL", "SEGV",
+        "PIPE", "ALRM", "TERM", "USR1", "USR2", "CHLD", "CONT", "STOP",
+        "TSTP", "TTIN", "TTOU", "URG", "XCPU", "XFSZ", "VTALRM", "PROF",
+        "WINCH", "IO", "PWR", "SYS"
+    };
+
+    @Override
+    public boolean signalSupported(String signame) {
+        try {
+            new Signal(signame);
+            return true;
+        } catch (IllegalArgumentException unsupported) {
+            return false;
+        }
+    }
+
+    @Override
+    public Set<String> supportedSignals() {
+        Set<String> result = new HashSet<String>();
+        for (String candidate : CANDIDATE_SIGNALS) {
+            if (signalSupported(candidate)) result.add(candidate);
+        }
+        return Collections.unmodifiableSet(result);
+    }
 
     /** Original handler for each signal beckon has taken over, for later restore. */
     private final Map<String, SignalHandler> originalHandlers =

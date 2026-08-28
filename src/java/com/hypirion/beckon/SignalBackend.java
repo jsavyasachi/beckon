@@ -2,6 +2,8 @@ package com.hypirion.beckon;
 
 import clojure.lang.Seqable;
 import sun.misc.SignalHandler;
+import java.util.Collections;
+import java.util.Set;
 
 /**
  * Pluggable backend for OS signal handling. Every JDK- or OS-specific signal
@@ -13,6 +15,19 @@ import sun.misc.SignalHandler;
  * property (see {@link SignalRegistererHelper}).
  */
 public interface SignalBackend {
+
+    default boolean signalSupported(String signame) {
+        try {
+            currentRunnables(signame);
+            return true;
+        } catch (RuntimeException unsupported) {
+            return false;
+        }
+    }
+
+    default Set<String> supportedSignals() {
+        return Collections.emptySet();
+    }
 
     /** Install (or replace) the handler for {@code signame} to run the given Runnables. */
     void register(String signame, Seqable runnables);

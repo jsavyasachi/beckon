@@ -178,6 +178,7 @@
                       (try (run)
                            (finally
                              (beckon/set-dispatch-policy! :synchronous)
+                             (beckon/set-callback-error-policy! :stop)
                              (beckon/reinit-all!)))))
 
 (deftest synchronous-dispatch-is-the-default
@@ -242,6 +243,86 @@
         (.countDown release)
         (Thread/sleep 100)
         (is (= 2 @hits)))
+      (finally
+        (.shutdownNow executor)))))
+
+(deftest callback-error-policies-are-explicit
+  (let [policy-var (ns-resolve 'beckon 'callback-error-policy)
+        set-policy-var (ns-resolve 'beckon 'set-callback-error-policy!)]
+    (is (some? policy-var))
+    (is (some? set-policy-var))
+    (when (and policy-var set-policy-var)
+      (let [errors (atom [])
+            ran (atom 0)]
+        (@set-policy-var (@policy-var :continue
+                                      :on-error #(swap! errors conj %)))
+        (let [folder (SignalFolder. "USR2"
+                                    [(fn [] (throw (Exception. "boom")))
+                                     #(swap! ran inc)])]
+          (.handle folder nil))
+        (is (= 1 @ran))
+        (is (= "boom" (.getMessage (first @errors)))))
+      (let [ran (atom 0)]
+        (@set-policy-var :rethrow)
+        (is (thrown-with-msg? Exception #"boom"
+                              (.handle (SignalFolder. "USR2"
+                                                       [(fn [] (throw (Exception. "boom")))
+                                                        #(swap! ran inc)])
+                                       nil)))
+        (is (= 0 @ran))))))
+
+(deftest callback-errors-can-be-collected
+  (let [policy-var (ns-resolve 'beckon 'callback-error-policy)
+        set-policy-var (ns-resolve 'beckon 'set-callback-error-policy!)]
+    (is (some? policy-var))
+    (is (some? set-policy-var))
+    (when (and policy-var set-policy-var)
+      (let [errors (atom [])
+            ran (atom 0)]
+        (@set-policy-var (@policy-var :collect :collector errors))
+        (.handle (SignalFolder. "USR2"
+                                [(fn [] (throw (Exception. "collected")))
+                                 #(swap! ran inc)])
+                 nil)
+        (is (= 1 @ran))
+        (is (= "collected" (.getMessage (first @errors))))))))
+
+(deftest signal-capability-api-normalizes-portable-names
+  (let [normalize (ns-resolve 'beckon 'normalize-signal-name)
+        supported (ns-resolve 'beckon 'supported-signals)
+        signal-supported (ns-resolve 'beckon 'signal-supported?)]
+    (is (some? normalize))
+    (is (some? supported))
+    (is (some? signal-supported))
+    (when (and normalize supported signal-supported)
+      (is (= "TERM" (@normalize "sigterm")))
+      (is (@signal-supported "SIGTERM"))
+      (is (contains? (@supported) "TERM"))
+      (is (not (@signal-supported "NOT_A_SIGNAL")))
+      (is (thrown-with-msg? IllegalArgumentException #"signal name"
+                            (@normalize "SIG"))))))
+
+(deftest shutdown-clears-signal-atoms-and-cancels-queued-callbacks
+  (let [shutdown (ns-resolve 'beckon 'shutdown!)
+        old-atom (beckon/signal-atom "USR2")
+        executor (Executors/newFixedThreadPool 1)
+        started (CountDownLatch. 1)
+        release (CountDownLatch. 1)
+        hits (atom 0)]
+    (is (some? shutdown))
+    (try
+      (beckon/set-dispatch-policy! (beckon/parallel-policy executor))
+      (.handle (SignalFolder. "USR2"
+                              [(fn [] (.countDown started)
+                                   (.await release 2 TimeUnit/SECONDS))])
+               nil)
+      (is (.await started 2 TimeUnit/SECONDS))
+      (.handle (SignalFolder. "USR2" [#(swap! hits inc)]) nil)
+      (when shutdown (@shutdown))
+      (.countDown release)
+      (Thread/sleep 100)
+      (is (= 0 @hits))
+      (is (not (identical? old-atom (beckon/signal-atom "USR2"))))
       (finally
         (.shutdownNow executor)))))
 

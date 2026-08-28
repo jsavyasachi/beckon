@@ -1,6 +1,6 @@
 (ns beckon
   (:import (clojure.lang Seqable)
-           (com.hypirion.beckon SignalAtoms SignalFolder SignalRegisterer)
+           (com.hypirion.beckon SignalAtoms SignalFolder SignalRegisterer SignalRegistererHelper)
            (sun.misc SignalHandler)
            (java.util.concurrent ExecutorService)))
 
@@ -25,6 +25,45 @@
   [executor]
   {:mode :bounded :executor executor})
 
+(defn callback-error-policy
+  "Returns a callback error policy. Modes are :continue, :stop, :log,
+  :collect, and :rethrow. :on-error receives each callback Exception;
+  :collector appends each Exception to a supplied atom."
+  [mode & {:keys [on-error collector]}]
+  (when-not (contains? #{:continue :stop :log :collect :rethrow} mode)
+    (throw (IllegalArgumentException. (str "Unknown callback error policy: " mode))))
+  (when (and on-error (not (ifn? on-error)))
+    (throw (IllegalArgumentException. ":on-error must be callable")))
+  (when (and collector (not (instance? clojure.lang.IAtom collector)))
+    (throw (IllegalArgumentException. ":collector must be an atom")))
+  {:mode mode :on-error on-error :collector collector})
+
+(def ^:private current-callback-error-policy (atom :default))
+
+(defn callback-error-policy-setting
+  "Returns the explicitly configured callback error policy, or :default."
+  [] @current-callback-error-policy)
+
+(defn set-callback-error-policy!
+  "Configures callback Exception handling. The default preserves historical
+  behavior: synchronous dispatch stops and asynchronous dispatch continues."
+  [policy]
+  (let [policy (if (keyword? policy) {:mode policy} policy)
+        mode (:mode policy)
+        callback (:on-error policy)
+        collector (:collector policy)
+        handler (when (or callback collector)
+                  (fn [error]
+                    (when collector (swap! collector conj error))
+                    (when callback (callback error))))]
+    (when-not (contains? #{:continue :stop :log :collect :rethrow} mode)
+      (throw (IllegalArgumentException. (str "Unknown callback error policy: " policy))))
+    (when (and (= mode :collect) (nil? collector))
+      (throw (IllegalArgumentException. ":collect requires :collector")))
+    (SignalFolder/configureErrors (name mode) handler)
+    (reset! current-callback-error-policy policy)
+    policy))
+
 (defn set-dispatch-policy!
   "Configures callback dispatch. The executor remains owned by the caller.
 
@@ -48,6 +87,8 @@
   (and (instance? Seqable handlers)
        (every? #(instance? Runnable %) handlers)))
 
+(declare normalize-signal-name)
+
 (defn signal-atom
   "Returns the beckon atom of the signal with the name signal-name. A change in
   the atom changes the signal handling, but a change in the signal handling does
@@ -69,9 +110,25 @@
   signal-name must be a legal POSIX signal, where SIG is omitted from the first
   part of the name."
   [signal-name]
-  (let [handler-atom (SignalAtoms/getSignalAtom signal-name)]
+  (let [signal-name (normalize-signal-name signal-name)
+        handler-atom (SignalAtoms/getSignalAtom signal-name)]
     (.setValidator handler-atom handler-collection?)
     handler-atom))
+
+(defn normalize-signal-name
+  "Normalizes a signal name to uppercase without its optional SIG prefix."
+  [signal-name]
+  (SignalRegistererHelper/normalizeSignalName signal-name))
+
+(defn signal-supported?
+  "Returns whether signal-name is available through the active backend."
+  [signal-name]
+  (SignalRegistererHelper/signalSupported signal-name))
+
+(defn supported-signals
+  "Returns the signal names available through the active backend."
+  []
+  (set (SignalRegistererHelper/supportedSignals)))
 
 (defn raise!
   "Raises a signal of the type specified. The signal handling procedure then
@@ -117,6 +174,16 @@
   "Resets all signal handlers of beckon to their default values."
   []
   (SignalRegisterer/resetAllHandlers))
+
+(defn shutdown!
+  "Restores all managed dispositions, removes signal atom watches and cached
+  atoms, clears dispatcher state, and cancels queued asynchronous callbacks.
+  Caller-owned executors are not shut down."
+  []
+  (SignalRegisterer/shutdown)
+  (reset! current-dispatch-policy :synchronous)
+  (reset! current-callback-error-policy :default)
+  nil)
 
 (defn add-handler!
   "Adds handler to the signal's handler collection atomically.
