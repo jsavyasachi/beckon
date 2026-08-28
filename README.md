@@ -83,12 +83,14 @@ That is all you need to know to work with beckon.
 
 ## Usage
 
-beckon has 17 core functions: `signal-atom`, `add-handler!`,
+beckon has 24 core functions: `signal-atom`, `add-handler!`,
 `remove-handler!`, `clear-handlers!`, `raise!`, `reinit!`, `reinit-all!`,
 `current-handler`, `default-handler!`, `ignored-handler!`,
 `chain-handler!`, `restore-handler!`, `dispatch-policy`,
 `set-dispatch-policy!`, `serial-policy`, `parallel-policy`, and
-`bounded-policy`.
+`bounded-policy`, `callback-error-policy`, `callback-error-policy-setting`,
+`set-callback-error-policy!`, `normalize-signal-name`, `signal-supported?`,
+`supported-signals`, and `shutdown!`.
 Usually you need only `add-handler!` and `remove-handler!` in a production
 system. The other functions help you to inspect or reset signal handling.
 
@@ -196,6 +198,41 @@ does not put application backpressure on the JVM signal thread.
 In asynchronous policies, an `Exception` from one callback does not cancel
 other callbacks that were submitted for the same delivery. As with the
 historical synchronous behavior, `Error` is not caught by beckon.
+
+### Coordinated process shutdown
+
+For a service, install one asynchronous callback for both termination signals
+and let a normal application thread coordinate cleanup. Keep `System/exit` out
+of the signal callback so resources can close in a predictable order:
+
+```clj
+(import '(java.util.logging Logger)
+        '(java.util.concurrent Executors TimeUnit))
+
+(let [logger (Logger/getLogger "my-service")
+      stopping (promise)
+      executor (Executors/newFixedThreadPool 2)
+      request-stop (fn [] (deliver stopping true))]
+  (beckon/set-dispatch-policy! (beckon/parallel-policy executor))
+  (beckon/add-handler! "TERM" request-stop)
+  (beckon/add-handler! "INT" request-stop)
+  (future
+    @stopping
+    (.info logger "shutdown requested")
+    ;; Stop accepting new work and close application-owned resources here.
+    (beckon/shutdown!)
+    (.shutdown executor)
+    (.awaitTermination executor 5 TimeUnit/SECONDS)
+    (.info logger "shutdown complete")
+    (System/exit 0)))
+```
+
+The same coordination pattern works with `beckon-ffm`; select it with
+`-Dbeckon.signal.backend=ffm --enable-native-access=ALL-UNNAMED`. The FFM
+package uses the same Clojure API, but signal availability remains dependent
+on the host operating system and backend. `shutdown!` cancels queued beckon
+callbacks that have not started; it does not interrupt callbacks already
+running or shut down an executor supplied by the application.
 
 ## How is a signal handled?
 
