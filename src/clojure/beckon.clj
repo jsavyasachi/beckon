@@ -175,6 +175,16 @@
   []
   (SignalRegisterer/resetAllHandlers))
 
+(defn shutdown!
+  "Restores all managed dispositions, removes signal atom watches and cached
+  atoms, clears dispatcher state, and cancels queued asynchronous callbacks.
+  Caller-owned executors are not shut down."
+  []
+  (SignalRegisterer/shutdown)
+  (reset! current-dispatch-policy :synchronous)
+  (reset! current-callback-error-policy :default)
+  nil)
+
 (defn add-handler!
   "Adds handler to the signal's handler collection atomically.
 

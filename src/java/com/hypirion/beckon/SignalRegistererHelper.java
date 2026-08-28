@@ -100,6 +100,12 @@ public class SignalRegistererHelper {
         return result;
     }
 
+    public static synchronized void shutdown() throws SignalHandlerNotFoundException {
+        BACKEND.resetAll();
+        SignalAtoms.clear();
+        SignalFolder.shutdownDispatch();
+    }
+
     static synchronized void register(String signame, Seqable fns) {
         BACKEND.register(normalizeSignalName(signame), fns);
     }

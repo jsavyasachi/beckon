@@ -302,6 +302,30 @@
       (is (thrown-with-msg? IllegalArgumentException #"signal name"
                             (@normalize "SIG"))))))
 
+(deftest shutdown-clears-signal-atoms-and-cancels-queued-callbacks
+  (let [shutdown (ns-resolve 'beckon 'shutdown!)
+        old-atom (beckon/signal-atom "USR2")
+        executor (Executors/newFixedThreadPool 1)
+        started (CountDownLatch. 1)
+        release (CountDownLatch. 1)
+        hits (atom 0)]
+    (is (some? shutdown))
+    (try
+      (beckon/set-dispatch-policy! (beckon/parallel-policy executor))
+      (.handle (SignalFolder. "USR2"
+                              [(fn [] (.countDown started)
+                                   (.await release 2 TimeUnit/SECONDS))])
+               nil)
+      (is (.await started 2 TimeUnit/SECONDS))
+      (.handle (SignalFolder. "USR2" [#(swap! hits inc)]) nil)
+      (when shutdown (@shutdown))
+      (.countDown release)
+      (Thread/sleep 100)
+      (is (= 0 @hits))
+      (is (not (identical? old-atom (beckon/signal-atom "USR2"))))
+      (finally
+        (.shutdownNow executor)))))
+
 ;; This suite is the backend-agnostic behavioral spec. It runs without changes
 ;; against the backend that `-Dbeckon.signal.backend` selects (default sunmisc;
 ;; this repository's CI currently exercises sunmisc only).

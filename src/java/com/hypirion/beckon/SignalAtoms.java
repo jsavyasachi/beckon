@@ -53,6 +53,14 @@ public class SignalAtoms {
         return atoms.get(signame);
     }
 
+    /** Removes all cached atoms and their watches after dispositions are restored. */
+    public static final synchronized void clear() {
+        for (Map.Entry<String, Atom> entry : atoms.entrySet()) {
+            entry.getValue().removeWatch(entry.getKey());
+        }
+        atoms.clear();
+    }
+
     private static class SignalAtomValidator extends AFn {
         @Override
         public Object invoke(Object newVal) {
