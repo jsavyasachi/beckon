@@ -49,6 +49,14 @@ public class SignalFolder implements SignalHandler {
         SignalDispatcher.configure(mode, executor);
     }
 
+    public static void configureErrors(String mode, clojure.lang.IFn callback) {
+        SignalDispatcher.configureErrors(mode, callback);
+    }
+
+    public static void shutdownDispatch() {
+        SignalDispatcher.shutdown();
+    }
+
     public void handle(Signal sig) {
         SignalDispatcher.dispatch(signame, fns);
         // The chained handler is the disposition that was installed before

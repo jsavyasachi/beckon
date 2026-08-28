@@ -178,6 +178,7 @@
                       (try (run)
                            (finally
                              (beckon/set-dispatch-policy! :synchronous)
+                             (beckon/set-callback-error-policy! :stop)
                              (beckon/reinit-all!)))))
 
 (deftest synchronous-dispatch-is-the-default
@@ -244,6 +245,47 @@
         (is (= 2 @hits)))
       (finally
         (.shutdownNow executor)))))
+
+(deftest callback-error-policies-are-explicit
+  (let [policy-var (ns-resolve 'beckon 'callback-error-policy)
+        set-policy-var (ns-resolve 'beckon 'set-callback-error-policy!)]
+    (is (some? policy-var))
+    (is (some? set-policy-var))
+    (when (and policy-var set-policy-var)
+      (let [errors (atom [])
+            ran (atom 0)]
+        (@set-policy-var (@policy-var :continue
+                                      :on-error #(swap! errors conj %)))
+        (let [folder (SignalFolder. "USR2"
+                                    [(fn [] (throw (Exception. "boom")))
+                                     #(swap! ran inc)])]
+          (.handle folder nil))
+        (is (= 1 @ran))
+        (is (= "boom" (.getMessage (first @errors)))))
+      (let [ran (atom 0)]
+        (@set-policy-var :rethrow)
+        (is (thrown-with-msg? Exception #"boom"
+                              (.handle (SignalFolder. "USR2"
+                                                       [(fn [] (throw (Exception. "boom")))
+                                                        #(swap! ran inc)])
+                                       nil)))
+        (is (= 0 @ran))))))
+
+(deftest callback-errors-can-be-collected
+  (let [policy-var (ns-resolve 'beckon 'callback-error-policy)
+        set-policy-var (ns-resolve 'beckon 'set-callback-error-policy!)]
+    (is (some? policy-var))
+    (is (some? set-policy-var))
+    (when (and policy-var set-policy-var)
+      (let [errors (atom [])
+            ran (atom 0)]
+        (@set-policy-var (@policy-var :collect :collector errors))
+        (.handle (SignalFolder. "USR2"
+                                [(fn [] (throw (Exception. "collected")))
+                                 #(swap! ran inc)])
+                 nil)
+        (is (= 1 @ran))
+        (is (= "collected" (.getMessage (first @errors))))))))
 
 ;; This suite is the backend-agnostic behavioral spec. It runs without changes
 ;; against the backend that `-Dbeckon.signal.backend` selects (default sunmisc;

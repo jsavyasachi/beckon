@@ -25,6 +25,45 @@
   [executor]
   {:mode :bounded :executor executor})
 
+(defn callback-error-policy
+  "Returns a callback error policy. Modes are :continue, :stop, :log,
+  :collect, and :rethrow. :on-error receives each callback Exception;
+  :collector appends each Exception to a supplied atom."
+  [mode & {:keys [on-error collector]}]
+  (when-not (contains? #{:continue :stop :log :collect :rethrow} mode)
+    (throw (IllegalArgumentException. (str "Unknown callback error policy: " mode))))
+  (when (and on-error (not (ifn? on-error)))
+    (throw (IllegalArgumentException. ":on-error must be callable")))
+  (when (and collector (not (instance? clojure.lang.IAtom collector)))
+    (throw (IllegalArgumentException. ":collector must be an atom")))
+  {:mode mode :on-error on-error :collector collector})
+
+(def ^:private current-callback-error-policy (atom :default))
+
+(defn callback-error-policy-setting
+  "Returns the explicitly configured callback error policy, or :default."
+  [] @current-callback-error-policy)
+
+(defn set-callback-error-policy!
+  "Configures callback Exception handling. The default preserves historical
+  behavior: synchronous dispatch stops and asynchronous dispatch continues."
+  [policy]
+  (let [policy (if (keyword? policy) {:mode policy} policy)
+        mode (:mode policy)
+        callback (:on-error policy)
+        collector (:collector policy)
+        handler (when (or callback collector)
+                  (fn [error]
+                    (when collector (swap! collector conj error))
+                    (when callback (callback error))))]
+    (when-not (contains? #{:continue :stop :log :collect :rethrow} mode)
+      (throw (IllegalArgumentException. (str "Unknown callback error policy: " policy))))
+    (when (and (= mode :collect) (nil? collector))
+      (throw (IllegalArgumentException. ":collect requires :collector")))
+    (SignalFolder/configureErrors (name mode) handler)
+    (reset! current-callback-error-policy policy)
+    policy))
+
 (defn set-dispatch-policy!
   "Configures callback dispatch. The executor remains owned by the caller.
 
