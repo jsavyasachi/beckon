@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-27
+
 ### Added
 
 - Add explicit callback error policies, error callbacks, and error collectors.
