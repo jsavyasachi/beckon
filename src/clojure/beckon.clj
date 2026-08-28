@@ -1,6 +1,6 @@
 (ns beckon
   (:import (clojure.lang Seqable)
-           (com.hypirion.beckon SignalAtoms SignalFolder SignalRegisterer)
+           (com.hypirion.beckon SignalAtoms SignalFolder SignalRegisterer SignalRegistererHelper)
            (sun.misc SignalHandler)
            (java.util.concurrent ExecutorService)))
 
@@ -87,6 +87,8 @@
   (and (instance? Seqable handlers)
        (every? #(instance? Runnable %) handlers)))
 
+(declare normalize-signal-name)
+
 (defn signal-atom
   "Returns the beckon atom of the signal with the name signal-name. A change in
   the atom changes the signal handling, but a change in the signal handling does
@@ -108,9 +110,25 @@
   signal-name must be a legal POSIX signal, where SIG is omitted from the first
   part of the name."
   [signal-name]
-  (let [handler-atom (SignalAtoms/getSignalAtom signal-name)]
+  (let [signal-name (normalize-signal-name signal-name)
+        handler-atom (SignalAtoms/getSignalAtom signal-name)]
     (.setValidator handler-atom handler-collection?)
     handler-atom))
+
+(defn normalize-signal-name
+  "Normalizes a signal name to uppercase without its optional SIG prefix."
+  [signal-name]
+  (SignalRegistererHelper/normalizeSignalName signal-name))
+
+(defn signal-supported?
+  "Returns whether signal-name is available through the active backend."
+  [signal-name]
+  (SignalRegistererHelper/signalSupported signal-name))
+
+(defn supported-signals
+  "Returns the signal names available through the active backend."
+  []
+  (set (SignalRegistererHelper/supportedSignals)))
 
 (defn raise!
   "Raises a signal of the type specified. The signal handling procedure then

@@ -5,6 +5,7 @@
 ### Added
 
 - Add explicit callback error policies, error callbacks, and error collectors.
+- Add signal capability discovery and portable signal-name normalization.
 
 ## [0.6.0] - 2026-08-27
 

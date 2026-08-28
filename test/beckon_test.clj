@@ -287,6 +287,21 @@
         (is (= 1 @ran))
         (is (= "collected" (.getMessage (first @errors))))))))
 
+(deftest signal-capability-api-normalizes-portable-names
+  (let [normalize (ns-resolve 'beckon 'normalize-signal-name)
+        supported (ns-resolve 'beckon 'supported-signals)
+        signal-supported (ns-resolve 'beckon 'signal-supported?)]
+    (is (some? normalize))
+    (is (some? supported))
+    (is (some? signal-supported))
+    (when (and normalize supported signal-supported)
+      (is (= "TERM" (@normalize "sigterm")))
+      (is (@signal-supported "SIGTERM"))
+      (is (contains? (@supported) "TERM"))
+      (is (not (@signal-supported "NOT_A_SIGNAL")))
+      (is (thrown-with-msg? IllegalArgumentException #"signal name"
+                            (@normalize "SIG"))))))
+
 ;; This suite is the backend-agnostic behavioral spec. It runs without changes
 ;; against the backend that `-Dbeckon.signal.backend` selects (default sunmisc;
 ;; this repository's CI currently exercises sunmisc only).
