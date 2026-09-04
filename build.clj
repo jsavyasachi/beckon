@@ -35,12 +35,12 @@
                 :version version
                 :basis @basis
                 :src-dirs ["src/clojure"]
-                :scm {:url "https://github.com/jsavyasachi/beckon"
-                      :connection "scm:git:https://github.com/jsavyasachi/beckon.git"
-                      :developerConnection "scm:git:ssh://git@github.com/jsavyasachi/beckon.git"
+                :scm {:url "https://github.com/savyalabs/beckon"
+                      :connection "scm:git:https://github.com/savyalabs/beckon.git"
+                      :developerConnection "scm:git:ssh://git@github.com/savyalabs/beckon.git"
                       :tag (str "v" version)}
                 :pom-data [[:description "Manage POSIX signals from Clojure via a small sun.misc.Signal backend."]
-                           [:url "https://github.com/jsavyasachi/beckon"]
+                           [:url "https://github.com/savyalabs/beckon"]
                            [:licenses
                             [:license
                              [:name "Eclipse Public License 1.0"]

@@ -2,7 +2,7 @@
 
 [![Clojars Project](https://img.shields.io/clojars/v/net.clojars.savya/beckon.svg)](https://clojars.org/net.clojars.savya/beckon)
 [![cljdoc](https://cljdoc.org/badge/net.clojars.savya/beckon)](https://cljdoc.org/d/net.clojars.savya/beckon/CURRENT)
-[![test](https://github.com/jsavyasachi/beckon/actions/workflows/test.yml/badge.svg)](https://github.com/jsavyasachi/beckon/actions/workflows/test.yml)
+[![test](https://github.com/savyalabs/beckon/actions/workflows/test.yml/badge.svg)](https://github.com/savyalabs/beckon/actions/workflows/test.yml)
 
 A Clojure library to handle POSIX signals in JVM applications. It does the
 low-level work and gives you a simple interface to the signal handlers.
@@ -16,7 +16,7 @@ low-level work and gives you a simple interface to the signal handlers.
 ## Installation
 
 Use `beckon` by default. It runs on JDK 8+ with no extra JVM flags. Use
-[`beckon-ffm`](https://github.com/jsavyasachi/beckon-ffm) only if you want the
+[`beckon-ffm`](https://github.com/savyalabs/beckon-ffm) only if you want the
 experimental Foreign Function & Memory backend on JDK 22+.
 
 Leiningen (`project.clj`):
@@ -257,7 +257,7 @@ add a [new issue][new-issue].
   Runnable, but they cannot return a value of use. A later version will correct
   this.
 
-[new-issue]: https://github.com/jsavyasachi/beckon/issues/new "Add a new issue to Beckon"
+[new-issue]: https://github.com/savyalabs/beckon/issues/new "Add a new issue to Beckon"
 
 ## Signal backends
 
@@ -268,7 +268,7 @@ can replace it if necessary.
 
 An experimental alternative uses the Foreign Function & Memory API (JDK 22+). It
 ships as a **separate package**,
-[`beckon-ffm`](https://github.com/jsavyasachi/beckon-ffm) (Linux `signalfd`,
+[`beckon-ffm`](https://github.com/savyalabs/beckon-ffm) (Linux `signalfd`,
 macOS/BSD `kqueue`). Add it with beckon:
 
 ```clj
